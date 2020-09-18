@@ -143,4 +143,6 @@ message Snapshot {
 
     // Folded state.
     optional bool folded = 16;
+    optional bool swiveled= 17;
+    optional bool dualed= 18;
 }

@@ -620,9 +620,13 @@ int main(int argc, char** argv)
 
     // print a version string and build id for easier debugging
 #if defined ANDROID_SDK_TOOLS_BUILD_NUMBER
+    //  build info
+    /*
     D("Android emulator version %s (CL:%s)", EMULATOR_VERSION_STRING
       " (build_id " STRINGIFY(ANDROID_SDK_TOOLS_BUILD_NUMBER) ")",
       EMULATOR_CL_SHA1);
+      */
+    D("Android emulator version LGE %s - %s",EMULATOR_VERSION_STRING_SHORT "-" EMULATOR_BUILD_STRING,__DATE__);
 #endif
 
     // If this is a restart, wait for the restartPid to exit.

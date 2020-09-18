@@ -275,6 +275,44 @@ FOUND_SKIN:
         }
     }
 
+    n = aconfig_find(root, "dual");
+    if (n == NULL) {
+        n = aconfig_find(root, "parts");
+        if (n != NULL) {
+            n = aconfig_find(n, "device");
+            if (n != NULL) {
+                n = aconfig_find(n, "dual");
+            }
+        }
+    }
+
+    if (n != NULL) {
+        int  width  = aconfig_int(n, "width", hwConfig->hw_dual_width);
+        int  height = aconfig_int(n, "height", hwConfig->hw_dual_height);
+        int  dpi  = aconfig_int(n, "dpi", hwConfig->hw_dual_dpi);
+        int  gap  = aconfig_int(n, "gap", hwConfig->hw_dual_gap);
+        int  rot  = aconfig_int(n, "rot", hwConfig->hw_dual_rot);
+
+        if (width > 0 && height > 0) {
+            /* The emulated framebuffer wants a width that is a multiple of 2 */
+            if ((width & 1) != 0) {
+                width  = (width + 1) & ~1;
+                D("adjusting Dual LCD dimensions to (%dx%dx)", width, height);
+            }
+
+            hwConfig->hw_dual_width  = width;
+            hwConfig->hw_dual_height = height;
+            hwConfig->hw_dual_dpi  = dpi;
+            hwConfig->hw_dual_gap  = gap;
+            hwConfig->hw_dual_rot  = rot;
+	    //printf("Dual w,h[%d %d] dpi[%d] gap[%d] rot[%d]\n",width,height,dpi,gap,rot);
+        }
+        else {
+            D("ignoring invalid skin Dual LCD dimensions (%dx%dx%d)",
+              width, height, dpi);
+        }
+    }
+
     *skinConfig = root;
     *skinPath   = strdup(path);
     return;

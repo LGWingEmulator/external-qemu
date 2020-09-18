@@ -248,6 +248,7 @@ public:
 
     bool isFastBlitSupported() const { return m_fastBlitSupported; }
     void postLayer(ComposeLayer* l, int frameWidth, int frameHeight);
+    void postLayerMask(ComposeLayer* l, int frameWidth, int frameHeight);
     GLuint getTexture();
 
     bool importMemory(

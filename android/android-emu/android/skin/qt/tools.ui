@@ -42,7 +42,16 @@ color: #f0f0f0</string>
    <property name="sizeConstraint">
     <enum>QLayout::SetFixedSize</enum>
    </property>
-   <property name="margin">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
     <number>0</number>
    </property>
    <item>
@@ -674,6 +683,100 @@ color: #f0f0f0</string>
        </property>
        <property name="ToolWindowButton" stdset="0">
         <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="swivel_switch">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>34</width>
+         <height>34</height>
+        </size>
+       </property>
+       <property name="toolTip">
+        <string>Swivel</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset resource="resources.qrc">
+         <normaloff>:/light/swivel_off</normaloff>:/light/swivel_off</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>24</width>
+         <height>24</height>
+        </size>
+       </property>
+       <property name="flat">
+        <bool>true</bool>
+       </property>
+       <property name="report_metrics" stdset="0">
+        <bool>false</bool>
+       </property>
+       <property name="themeIconName" stdset="0">
+        <string notr="true">swivel_off</string>
+       </property>
+       <property name="uiCommand" stdset="0">
+        <string>SWIVEL</string>
+       </property>
+       <property name="ToolWindowButton" stdset="0">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="dual_switch">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>34</width>
+         <height>34</height>
+        </size>
+       </property>
+       <property name="toolTip">
+        <string>Dual</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset resource="resources.qrc">
+         <normaloff>:/light/dual_off</normaloff>:/light/dual_off</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>24</width>
+         <height>24</height>
+        </size>
+       </property>
+       <property name="flat">
+        <bool>true</bool>
+       </property>
+       <property name="report_metrics" stdset="0">
+        <bool>false</bool>
+       </property>
+       <property name="ToolWindowButton" stdset="0">
+        <bool>true</bool>
+       </property>
+       <property name="uiCommand" stdset="0">
+        <string>DUAL</string>
+       </property>
+       <property name="themeIconName" stdset="0">
+        <string notr="true">dual_off</string>
        </property>
       </widget>
      </item>

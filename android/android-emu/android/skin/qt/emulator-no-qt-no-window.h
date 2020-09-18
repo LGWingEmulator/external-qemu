@@ -110,6 +110,12 @@ public:
     void fold();
     void unFold();
     bool isFolded() const;
+    void swivel();
+    void unSwivel();
+    bool isSwiveled() const;
+    void dual();
+    void unDual();
+    bool isDualed() const;
     void pollEvent(SkinEvent* event, bool* hasEvent);
     void requestClose();
     void startThread(std::function<void()> looperFunction);
@@ -118,8 +124,12 @@ public:
 private:
     explicit EmulatorNoQtNoWindow();
     void forwardGenericEventToEmulator(int type, int code, int value);
-    bool notSupoortFold();
+    bool notSuportFold();
     void sendFoldedArea();
+    bool notSuportSwivel();
+    void sendSwiveledArea();
+    bool notSuportDual();
+    void sendDualedArea();
     void queueSkinEvent(SkinEvent* event);
 
     static const UiEmuAgent* sUiEmuAgent;
@@ -129,6 +139,8 @@ private:
     android::base::Lock mSkinEventQueueLock;
     std::queue<SkinEvent*> mSkinEventQueue;
     bool mIsFolded = false;
+    bool mIsSwiveled = false;
+    bool mIsDualed = false;
 };
 
 #ifdef CONFIG_HEADLESS

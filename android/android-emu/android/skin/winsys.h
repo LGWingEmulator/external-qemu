@@ -150,6 +150,7 @@ void skin_winsys_enter_main_loop(bool no_window);
 // E.g. for Qt UI, it makes sure the function runs on the main Qt UI thread,
 //   as Qt requires any UI interaction to come from there.
 typedef void (*SkinGenericFunction)(void* data);
+void skin_winsys_getDualSize(int* main_w,int* main_h,int* sub_w,int* sub_h,int* gap, int* rot) ;
 void skin_winsys_run_ui_update(SkinGenericFunction f, void* data, bool wait);
 
 // Show a blocking error dialog running on the UI thread.
@@ -160,6 +161,8 @@ void skin_winsys_set_ui_agent(const UiEmuAgent* agent);
 void skin_winsys_report_entering_main_loop(void);
 
 bool skin_winsys_is_folded(void);
+bool skin_winsys_is_swiveled(void);
+bool skin_winsys_is_dualed(void);
 
 // touch extended window and virtual sensor page objects
 void skin_winsys_touch_qt_extended_virtual_sensors(void);

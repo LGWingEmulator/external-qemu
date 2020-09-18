@@ -495,7 +495,27 @@ static AvdInfo* createAVD(AndroidOptions* opts, int* inAndroidBuild) {
             }
         }
     }
+    if (opts->skindir != NULL && opts->avd != NULL) {
+        char* avd_h = getenv("ANDROID_AVD_HOME");
+        char * CfginiFile,*LgeiniFile;
+        char * skinName,*skinPath;
+        asprintf(&CfginiFile,"%s/%s.avd/config.ini",avd_h,opts->avd);
+        asprintf(&skinPath,"%s/\%s",opts->skindir,opts->skin);
+        asprintf(&skinName ,"%s",opts->skin);
 
+        CIniFile *cfgIni = iniFile_newFromFile(CfginiFile);
+        iniFile_setValue(cfgIni,"skin.name",skinName);
+        iniFile_setValue(cfgIni,"skin.path",skinPath);
+        iniFile_saveToFile(cfgIni, CfginiFile);
+        asprintf(&LgeiniFile,"%s/%s.avd/lge-config.ini",avd_h,opts->avd);
+        if (access( LgeiniFile, 0)==0)
+        {
+            CIniFile *lgeIni = iniFile_newFromFile(LgeiniFile);
+            iniFile_setValue(lgeIni,"skin.name",skinName);
+            iniFile_setValue(lgeIni,"skin.path",skinPath);
+            iniFile_saveToFile(lgeIni, LgeiniFile);
+        }
+    }
     /* setup the virtual device differently depending on whether
      * we are in the Android build system or not
      */
@@ -1567,17 +1587,18 @@ bool emulator_parseCommonCommandLineOptions(int* p_argc,
     }
 
     if (opts->version) {
-      printf("Android emulator version %s (CL:%s)\n"
+      printf("Android emulator version LGE %s - %s\n"
              "Copyright (C) 2006-2017 The Android Open Source Project and many "
              "others.\n"
              "This program is a derivative of the QEMU CPU emulator "
              "(www.qemu.org).\n\n",
 #if defined ANDROID_SDK_TOOLS_BUILD_NUMBER
-             EMULATOR_VERSION_STRING " (build_id " STRINGIFY(ANDROID_SDK_TOOLS_BUILD_NUMBER) ")",
+//             EMULATOR_VERSION_STRING " (build_id " STRINGIFY(ANDROID_SDK_TOOLS_BUILD_NUMBER) ")",
+             EMULATOR_VERSION_STRING_SHORT "-" EMULATOR_BUILD_STRING,
 #else
              EMULATOR_VERSION_STRING,
 #endif
-             EMULATOR_CL_SHA1);
+             __DATE__);
 
         printf("  This software is licensed under the terms of the GNU General Public\n"
                "  License version 2, as published by the Free Software Foundation, and\n"

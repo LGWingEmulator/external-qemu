@@ -46,7 +46,18 @@ typedef enum {
     kEventSetMultiDisplay,
     kEventSetNoSkin,
     kEventRestoreSkin,
+    kEventSetDualSkin,
+    kEventSetFrameMode,
+    kEventReconfigureLayout,
 } SkinEventType;
+
+// to support multi display rotation & skins
+typedef struct {
+    int w;
+    int h;
+    bool dual;
+} SkinReconfigure;
+
 
 typedef enum {
     kMouseButtonLeft,
@@ -122,6 +133,13 @@ typedef struct {
     int delta; // Positive or negative relative rotation
 } SkinEventRotaryInputData;
 
+typedef struct{
+    int mode;
+} SkinEventSetDualSkin;
+typedef struct{
+    int mode;
+} SkinEventSetFrameMode;
+
 typedef struct {
     SkinEventType type;
     union {
@@ -135,6 +153,9 @@ typedef struct {
         SkinEventLayoutRotateData layout_rotation;
         SkinEventDisplayRegion display_region;
         SkinEventMultiDisplay multi_display;
+        SkinEventSetDualSkin dual_skin;
+        SkinEventSetFrameMode frame_mode;
+	SkinReconfigure  reconfigure;
     } u;
 } SkinEvent;
 

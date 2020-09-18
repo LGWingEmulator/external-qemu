@@ -41,7 +41,7 @@
 #include "android/utils/looper.h"                        // for looper_getFo...
 
 #define  D(...)  do {  if (VERBOSE_CHECK(init)) dprint(__VA_ARGS__); } while (0)
-
+static int mRot=0;
 /* EmulatorWindow structure instance. */
 static EmulatorWindow   qemulator[1];
 
@@ -539,6 +539,7 @@ emulator_window_set_device_coarse_orientation(SkinRotation orientation,
             break;
     }
     android_sensors_set_coarse_orientation(coarseOrientation, tilt_degrees);
+    mRot=(int)coarseOrientation;
 }
 
 bool

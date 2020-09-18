@@ -24,6 +24,12 @@
 #include "android/utils/path.h"          // for PATH_SEP
 #include "android/utils/system.h"        // for ANEW0, AFREE
 
+#include <stdio.h>
+#define PD(...) {printf("[%s:%d:%s] ",__FILE__,__LINE__,__FUNCTION__);printf(__VA_ARGS__);printf("\n");}
+#define PDE(...) {printf( __VA_ARGS__);printf("\n");}
+#define D(...) ((void)0)
+
+
 /** UTILITY ROUTINES
  **/
 static SkinImage*
@@ -396,8 +402,10 @@ static SkinPart* skin_part_create_from_v2(
         skin_background_init_from(part->background, node, basepath);
 
     node = aconfig_find_const(root, "display");
-    if (node)
+    if (node) {
         skin_display_init_from(part->display, node, fb_funcs);
+	D("part->display %lx",(uint64_t)part->display);
+    }
 
     node = aconfig_find_const(root, "buttons");
     if (node) {

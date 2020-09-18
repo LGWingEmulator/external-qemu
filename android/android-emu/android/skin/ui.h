@@ -151,4 +151,7 @@ void skin_ui_update_rotation(SkinUI* ui, SkinRotation rotation);
 bool skin_ui_update_and_rotate(SkinUI* ui,
                                struct SkinFile* layout_file,
                                SkinRotation rotation);
+void skin_reconfigure_layout(uint32_t w,uint32_t h,bool dual);
+void skin_resizeLayout(uint32_t w, uint32_t h,uint32_t offX, uint32_t offY);
+
 ANDROID_END_HEADER

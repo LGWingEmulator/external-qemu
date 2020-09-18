@@ -91,6 +91,12 @@ void generateAvd(const AvdGenerateInfo& genInfo) {
     configIni.setInt("hw.lcd.density", genInfo.hwLcdDensity);
     configIni.setInt("hw.lcd.height", genInfo.hwLcdHeight);
     configIni.setInt("hw.lcd.width", genInfo.hwLcdWidth);
+    configIni.setInt("hw.dual.density", genInfo.hwDualDensity);
+    configIni.setInt("hw.dual.height", genInfo.hwDualHeight);
+    configIni.setInt("hw.dual.width", genInfo.hwDualWidth);
+    configIni.setInt("hw.dual.gap", genInfo.hwDualGap);
+    configIni.setInt("hw.dual.rot", genInfo.hwDualRot);
+    configIni.setString("hw.device.type", genInfo.hwDeviceType);
     configIni.setString("hw.mainKeys", genInfo.hwMainKeys);
     configIni.setInt("hw.ramSize", genInfo.hwRamSize);
     configIni.setString("hw.sdCard", genInfo.hwSdCard);
@@ -187,6 +193,12 @@ void generateAvdWithDefaults(StringView avdName,
         /* hw.lcd.density */ 120,
         /* hw.lcd.height */ 480,
         /* hw.lcd.width */ 640,
+        /* hw.dual.density */ 320,
+        /* hw.dual.height */ 1250,
+        /* hw.dual.width */ 1080,
+        /* hw.dual.gap */ 10,
+        /* hw.dual.rot */ 3,
+        /* hw.device.type */ "none",
         /* hw.mainKeys */ "no",
         /* hw.ramSize */ 128,
         /* hw.sdCard */ "yes",

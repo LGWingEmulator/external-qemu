@@ -27,6 +27,9 @@ class QWidget;
 
 std::vector<MultiDisplayItem::displayType> MultiDisplayItem::sDisplayTypes =
     {{"480p(720x480)", "480p", 720, 480, 142},
+     {"Wing(1080x1240)", "Wing", 1080, 1240, 420},
+     {"WingWide(1240x1080)", "WingWide", 1240, 1080, 420},
+     {"Dual(1080x2460)", "Dual", 2460, 1080, 420},
      {"720p(1280x720)", "720p", 1280, 720, 213},
      {"1080p(1920x1080)", "1080p", 1920, 1080, 320},
      {"4K(3840x2160)", "4K", 3840, 2160, 320},

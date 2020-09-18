@@ -54,6 +54,12 @@ struct AvdGenerateInfo {
     int hwLcdDensity; // hw.lcd.density=420
     int hwLcdHeight; // hw.lcd.height=1920
     int hwLcdWidth; // hw.lcd.width=1080
+    int hwDualDensity; // hw.dual.density=420
+    int hwDualHeight; // hw.dual.height=1250
+    int hwDualWidth; // hw.dual.width=1080
+    int hwDualGap; // hw.dual.gap=10
+    int hwDualRot; // hw.dual.rot=3
+    const char* hwDeviceType; // hw.device.type=AB
     const char* hwMainKeys; // hw.mainKeys=no
     int hwRamSize; // hw.ramSize=1536
     const char* hwSdCard; // hw.sdCard=yes

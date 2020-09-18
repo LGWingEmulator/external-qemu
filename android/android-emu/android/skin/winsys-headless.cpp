@@ -403,6 +403,17 @@ extern void skin_winsys_start(bool no_window) {
     EmulatorNoQtNoWindow::create();
 }
 
+void skin_winsys_getDualSize(int* main_w,int* main_h,int* sub_w,int* sub_h,int* gap, int* rot)
+{
+    D(__FUNCTION__);
+    (void)main_w;
+    (void)main_h;
+    (void)sub_w;
+    (void)sub_h;
+    (void)gap;
+    (void)rot;
+}
+
 void skin_winsys_run_ui_update(SkinGenericFunction f, void* data,
                                bool wait) {
     D(__FUNCTION__);
@@ -424,7 +435,12 @@ void skin_winsys_report_entering_main_loop(void) { }
 extern bool skin_winsys_is_folded() {
     return false;
 }
-
+extern bool skin_winsys_is_swiveled() {
+    return false;
+}
+extern bool skin_winsys_is_dualed() {
+    return false;
+}
 extern void skin_winsys_touch_qt_extended_virtual_sensors(void) { }
 
 // Other skin functions (Just fix link errors for now)

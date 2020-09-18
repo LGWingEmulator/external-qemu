@@ -85,6 +85,10 @@ constexpr CommandInfo kCommands[] = {
                      "Enable virtual scene camera controls"),
         INIT_COMMAND(FOLD, "Fold"),
         INIT_COMMAND(UNFOLD, "Unfold"),
+        INIT_COMMAND(SWIVEL, "Swivel"),
+        INIT_COMMAND(UNSWIVEL, "Unswivel"),
+        INIT_COMMAND(DUAL, "Dual"),
+        INIT_COMMAND(UNDUAL, "Undual"),
 };
 
 bool parseQtUICommand(const QString& string, QtUICommand* command) {

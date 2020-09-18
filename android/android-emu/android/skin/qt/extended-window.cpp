@@ -138,8 +138,10 @@ ExtendedWindow::ExtendedWindow(
             SIGNAL(ensureVirtualSceneWindowCreated()), mToolWindow,
             SLOT(ensureVirtualSceneWindowCreated()));
 
-    connect(mExtendedUi->virtualSensorsPage, SIGNAL(windowVisible()), this,
-            SLOT(hideRotationButtons()));
+// enable due to support muldi screen rotation
+//    connect(mExtendedUi->virtualSensorsPage, SIGNAL(windowVisible()), this,
+//            SLOT(hideRotationButtons()));
+
     // clang-format off
     mPaneButtonMap = {
         {PANE_IDX_CAR,           mExtendedUi->carDataButton},
@@ -172,7 +174,7 @@ ExtendedWindow::ExtendedWindow(
     } else {
         mSidebarButtons.addButton(mExtendedUi->locationButton);
     }
-
+#if 0
     if (android::featurecontrol::isEnabled(android::featurecontrol::MultiDisplay) &&
         !ToolWindow::isFoldableConfigured()) {
         mSidebarButtons.addButton(mExtendedUi->displaysButton);
@@ -180,6 +182,17 @@ ExtendedWindow::ExtendedWindow(
     } else {
         mExtendedUi->displaysButton->setVisible(false);
     }
+#else
+    if (android::featurecontrol::isEnabled(android::featurecontrol::MultiDisplay) &&
+        !ToolWindow::isFoldableConfigured() &&
+        !ToolWindow::isDualableConfigured() &&
+        !ToolWindow::isSwivelableConfigured()) {
+        mSidebarButtons.addButton(mExtendedUi->displaysButton);
+        mExtendedUi->displaysButton->setVisible(true);
+    } else {
+        mExtendedUi->displaysButton->setVisible(false);
+    }
+#endif
     mSidebarButtons.addButton(mExtendedUi->cellularButton);
     mSidebarButtons.addButton(mExtendedUi->batteryButton);
     mSidebarButtons.addButton(mExtendedUi->telephoneButton);

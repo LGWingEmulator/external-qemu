@@ -242,6 +242,17 @@ public:
     void resizeAndChangeAspectRatio(int x, int y, int w, int h);
     bool isFolded() const;
     bool isFoldableConfigured() const;
+    void resizeSwivel(bool isDualed);
+    void resizeSwivel(int x, int y, int w, int h);
+    bool isSwiveled() const;
+    bool isSwivelableConfigured() const;
+    void resizeDual(bool isDualed);
+    void resizeDual(int x, int y, int w, int h);
+    bool isDualed() const;
+    bool isDualableConfigured() const;
+    void updateDualSkin(int mode);
+    void setFrameMode(int mode);
+    void showWinMode(int mode);
     void handleMouseEvent(SkinEventType type,
                           SkinMouseButtonType button,
                           const QPoint& pos,
@@ -299,6 +310,7 @@ public:
     bool getMonitorRect(uint32_t* width, uint32_t* height);
     void setNoSkin();
     void restoreSkin();
+    void showEmulatorWindow(int opt);
     bool multiDisplayParamValidate(uint32_t id, uint32_t w, uint32_t h,
                                    uint32_t dpi, uint32_t flag);
     void updateUIMultiDisplayPage(uint32_t id);
@@ -307,6 +319,20 @@ public:
 
 public slots:
     void rotateSkin(SkinRotation rot);
+    bool getDualSize(int* main_w, int* main_h, int* sub_w, int* sub_h,int* gap, int* rot) ;
+    int  getOrientation();
+    void setSensorRotate(int rot);
+    bool switchDual(int32_t opt0);
+    bool switchOption(int32_t opt0,
+                            int32_t opt1,
+                            int32_t opt2,
+                            int32_t opt3,
+                            int32_t opt4,
+                            int32_t opt5,
+                            int32_t opt6,
+                            int32_t opt7,
+                            int32_t opt8,
+                            int32_t opt9);
     bool switchMultiDisplay(bool enabled,
                             uint32_t id,
                             int32_t x,
@@ -440,6 +466,7 @@ private:
     void runAdbShellPowerDownAndQuit();
     void setVisibleExtent(QBitmap bitMap);
     void getSkinPixmap(); // For masking the skin when frameless
+    bool chkSkin();
     int countEnabledMultiDisplayLocked();
     void getCombinedDisplaySize(uint32_t* w, uint32_t* h);
 
@@ -453,6 +480,7 @@ private:
     QPixmap* mRawSkinPixmap = nullptr; // For masking frameless AVDs
     bool mBackingBitmapChanged = true;
     bool mSkinPixmapIsPortrait = true;
+    int mSingleSkinmode= -1;
 
     QQueue<SkinEvent*> mSkinEventQueue;
     android::base::Lock mSkinEventQueueLock;
@@ -569,6 +597,10 @@ private:
     android::base::Lock mMultiDisplayLock;
     static const int MAX_MULTIDISPLAYS = 10;
     void saveMultidisplayToConfig();
+
+    bool skinHas = false;
+    bool dualReady = false;
+    bool emuExitStatus = false;
 };
 
 class SkinSurfaceBitmap {

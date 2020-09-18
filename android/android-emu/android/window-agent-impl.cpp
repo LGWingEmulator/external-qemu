@@ -115,6 +115,49 @@ static const QAndroidEmulatorWindowAgent sQAndroidEmulatorWindowAgent = {
                     }
                     return false;
                 },
+        .swivel =
+                [](bool is_swivel) {
+                    if (const auto win = EmulatorQtWindow::getInstance()) {
+                        if (win->isSwivelableConfigured()) {
+                            QtUICommand cmd = is_swivel ? QtUICommand::SWIVEL
+                                                      : QtUICommand::UNSWIVEL;
+                            win->runOnUiThread([win, cmd]() {
+                                win->toolWindow()->handleUICommand(cmd);
+                            });
+                            return true;
+                        }
+                    }
+                    return false;
+                },
+        .isSwiveled =
+                [] {
+                    if (const auto win = EmulatorQtWindow::getInstance()) {
+                        return win->isSwiveled();
+                    }
+                    return false;
+                },
+        .dual=
+                [](bool is_dual) {
+                    if (const auto win = EmulatorQtWindow::getInstance()) {
+                        if (win->isDualableConfigured()) {
+                            QtUICommand cmd = is_dual ? QtUICommand::DUAL
+                                                      : QtUICommand::UNDUAL;
+                            win->runOnUiThread([win, cmd]() {
+                                win->toolWindow()->handleUICommand(cmd);
+                            });
+                            return true;
+                        }
+                    }
+                    return false;
+                },
+        .isDualed=
+                [] {
+                    if (const auto win = EmulatorQtWindow::getInstance()) {
+                        return win->isDualed();
+                    }
+                    return false;
+                },
+        /***************/
         .setUIDisplayRegion =
                 [](int x, int y, int w, int h) {
                     if (const auto win = EmulatorQtWindow::getInstance()) {
@@ -149,6 +192,21 @@ static const QAndroidEmulatorWindowAgent sQAndroidEmulatorWindowAgent = {
                     }
                     return false;
                 },
+        .getDualSize =
+                [](int* main_w,int* main_h,int* sub_w,int* sub_h,int* gap, int* rot ) {
+                    if (const auto win = EmulatorQtWindow::getInstance()) {
+                        return win->getDualSize(main_w,main_h,sub_w,sub_h,gap,rot);
+                    } else {
+                        return false;
+                    }
+                },
+	.getOrientation =
+		[]() {
+			if (const auto win = EmulatorQtWindow::getInstance()) {
+                         return win->getOrientation();
+			}
+			else return (int)0;
+                },
         .getMonitorRect =
                 [](uint32_t* w, uint32_t* h) {
                     if (const auto win = EmulatorQtWindow::getInstance()) {
@@ -168,6 +226,29 @@ static const QAndroidEmulatorWindowAgent sQAndroidEmulatorWindowAgent = {
                     if (const auto win = EmulatorQtWindow::getInstance()) {
                         return win->restoreSkin();
                     }
+                },
+        .switchDual =
+                [](int32_t opt0) {
+                    if (const auto win = EmulatorQtWindow::getInstance()) {
+                        return win->switchDual(opt0);
+                    }
+                    return false;
+                },
+        .switchOption =
+                [](int32_t opt0,
+                   int32_t opt1,
+                   int32_t opt2,
+                   int32_t opt3,
+                   int32_t opt4,
+                   int32_t opt5,
+                   int32_t opt6,
+                   int32_t opt7,
+                   int32_t opt8,
+                   int32_t opt9) {
+                    if (const auto win = EmulatorQtWindow::getInstance()) {
+                        return win->switchOption(opt0,opt1,opt2,opt3,opt4,opt5,opt6,opt7,opt8,opt9);
+                    }
+                    return false;
                 },
         .switchMultiDisplay =
                 [](bool add,

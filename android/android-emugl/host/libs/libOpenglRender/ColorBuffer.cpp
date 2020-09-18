@@ -943,6 +943,12 @@ void ColorBuffer::postLayer(ComposeLayer* l, int frameWidth, int frameHeight) {
     m_helper->getTextureDraw()->drawLayer(l, frameWidth, frameHeight, m_width, m_height, m_tex);
 }
 
+void ColorBuffer::postLayerMask(ComposeLayer* l, int frameWidth, int frameHeight) {
+    if (m_inUse) fprintf(stderr, "%s: cb in use\n", __func__);
+    waitSync();
+    m_helper->getTextureDraw()->drawLayerMask(l, frameWidth, frameHeight, m_width, m_height, m_tex);
+}
+
 bool ColorBuffer::importMemory(
 #ifdef _WIN32
         void* handle,

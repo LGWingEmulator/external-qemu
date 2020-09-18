@@ -126,3 +126,5 @@ extern void             skin_window_update_display( SkinWindow*  window, int  x,
 extern void skin_window_update_gpu_frame(SkinWindow* window, int w, int h, const void* pixels);
 
 extern void skin_window_update_rotation(SkinWindow* window, SkinRotation rotation);
+extern void skin_window_update_dualskin(int mode);
+extern void skin_window_update_framemode(int mode);

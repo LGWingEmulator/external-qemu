@@ -824,6 +824,17 @@ extern void skin_winsys_start(bool no_window) {
     }
 }
 
+void skin_winsys_getDualSize(int* main_w,int* main_h,int* sub_w,int* sub_h,int* gap, int* rot)
+{
+    D(__FUNCTION__);
+    EmulatorQtWindow* const window = EmulatorQtWindow::getInstance();
+    if (window == NULL) {
+        D("%s: Could not get window handle", __FUNCTION__);
+        return;
+    }
+    window->getDualSize(main_w,main_h,sub_w,sub_h,gap,rot);
+}
+
 void skin_winsys_run_ui_update(SkinGenericFunction f, void* data,
                                bool wait) {
     D(__FUNCTION__);
@@ -900,6 +911,20 @@ void skin_winsys_set_ui_agent(const UiEmuAgent* agent) {
             // host, and will not be sent to guest. Guest just restore to
             // it snapshot vm status.
             if (agent->multiDisplay->tryLockMultiDisplayOnLoad()) {
+#if 0
+               // to support multi display rotation & skins
+	       // always dual screen mode for Wing
+               if ( android_hw->hw_dual_width && android_hw->hw_dual_height && android_hw->hw_dual_dpi ) {
+                    printf("emulator: Activate Dual\n");
+                    window->switchMultiDisplay( true,1,0,0,
+                                  android_hw->hw_dual_width,
+                                  android_hw->hw_dual_height,
+                                  android_hw->hw_dual_dpi,
+                                  0);
+                    window->updateUIMultiDisplayPage(1);
+                }
+#endif
+		/*
                 std::vector<MultiDisplayInfo> info = skin_winsys_parse_multidisplay_args();
                 if (info.size()) {
                     LOG(VERBOSE) << "config multidisplay with command-line";
@@ -959,6 +984,7 @@ void skin_winsys_set_ui_agent(const UiEmuAgent* agent) {
                         window->updateUIMultiDisplayPage(3);
                     }
                 }
+		*/
                 agent->multiDisplay->unlockMultiDisplayOnLoad();
             }
         });
@@ -972,7 +998,12 @@ void skin_winsys_report_entering_main_loop(void) {
 extern bool skin_winsys_is_folded() {
     return ToolWindow::isFolded();
 }
-
+extern bool skin_winsys_is_swiveled() {
+    return ToolWindow::isSwiveled();
+}
+extern bool skin_winsys_is_dualed() {
+    return ToolWindow::isDualed();
+}
 #ifdef _WIN32
 extern "C" int qt_main(int, char**);
 

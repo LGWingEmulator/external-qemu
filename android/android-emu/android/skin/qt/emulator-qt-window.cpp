@@ -56,6 +56,8 @@
 #include "android/utils/filelock.h"
 #include "android/virtualscene/TextureUtils.h"
 
+#include "android/hw-sensors.h"
+
 #define DEBUG 1
 
 #if DEBUG
@@ -64,6 +66,9 @@
 #else
 #define D(...) ((void)0)
 #endif
+#define PD(...) {printf("[%s:%d:%s] ",__FILE__,__LINE__,__FUNCTION__);printf(__VA_ARGS__);printf("\n");}
+#define PDE(...) {printf( __VA_ARGS__);printf("\n");}
+#define DD(...) ((void)0)
 
 #include <QBitmap>
 #include <QCheckBox>
@@ -87,6 +92,7 @@
 
 #ifdef _WIN32
 #include <io.h>
+#include "windows.h"
 #else
 #ifndef _MSC_VER
 #include <unistd.h>
@@ -885,7 +891,16 @@ void EmulatorQtWindow::closeEvent(QCloseEvent* event) {
         event->ignore();
         return;
     }
+#if 0
+    if ( isSwivelableConfigured()) {
+          mToolWindow->setInitSkin(true);
+          runOnUiThread([this] {
+                  mToolWindow->handleUICommand(QtUICommand::SWIVEL);
 
+          });
+//          showWinMode(0);
+    }
+#endif
     if (mToolWindow) {
         mToolWindow->setEnabled(false);
     }
@@ -1081,7 +1096,8 @@ void EmulatorQtWindow::maskWindowFrame() {
     mContainer.setWindowFlags(flags);
 
     // Re-generate and apply the mask
-    if (haveFrame) {
+//    if ( haveFrame && ( isSwiveled()==true) ) {
+    if (haveFrame && ( isSwiveled()==true || chkSkin()==false) ) {
         // We have a frame. Do not use a mask around the device.
 #ifdef _WIN32
         mContainer.clearMask();
@@ -1133,6 +1149,8 @@ void EmulatorQtWindow::maskWindowFrame() {
             QBitmap bitmap = scaledPixmap.mask();
             setVisibleExtent(bitmap);
 
+            mBackingSurface->isRound = false;
+#if 0
             // Determine if this is a round device.
             // If this mask is circular, it will be transparent near
             // the corners of the bounding rectangle. The top left of
@@ -1148,6 +1166,7 @@ void EmulatorQtWindow::maskWindowFrame() {
                 // (If it is null, it's not doing anything, which is rectangular.)
                 mBackingSurface->isRound = (mapImage.pixel(xTest, yTest) == 0xFFFFFFFF);
             }
+#endif
 #ifdef __APPLE__
             // On Mac, the mask is automatically stretched so its
             // rectangular extent is as big as the widget it is
@@ -1178,6 +1197,11 @@ void EmulatorQtWindow::maskWindowFrame() {
         mHardRefreshCountDown = 5;
         mPreviouslyFramed = haveFrame;
     }
+
+    SkinEvent* event = new SkinEvent();
+    event->type = kEventScreenChanged;
+    queueSkinEvent(event);
+    /*
     SkinEvent* event = new SkinEvent();
     if (mHardRefreshCountDown == 0) {
         D("%s: kEventWindowChanged", __FUNCTION__);
@@ -1188,19 +1212,40 @@ void EmulatorQtWindow::maskWindowFrame() {
         mHardRefreshCountDown--;
     }
     queueSkinEvent(event);
+    */
 }
-
-void EmulatorQtWindow::getSkinPixmap() {
-    if (mRawSkinPixmap != nullptr) {
-        // Already exists
-        return;
-    }
-    mSkinPixmapIsPortrait = true; // Default assumption
-    // We need to read the skin image.
-    // Where is the skin?
+bool EmulatorQtWindow::chkSkin() {
     char *skinName;
     char *skinDir;
     avdInfo_getSkinInfo(android_avdInfo, &skinName, &skinDir);
+    if ( skinDir ) skinHas = true;
+    else skinHas = false;
+    return skinHas;
+}
+
+void EmulatorQtWindow::getSkinPixmap() {
+    if( !ToolWindow::isSwivelableConfigured() &&
+       !ToolWindow::isDualableConfigured() )
+    {
+        if (mRawSkinPixmap != nullptr) {
+            // Already exists
+            return;
+        }
+    }
+    else
+    {
+        if(isSwiveled()==true && mSingleSkinmode==0)
+            return;
+        else if(isSwiveled()==false && mSingleSkinmode==1)
+            return;
+    }
+    mSkinPixmapIsPortrait = true; // Default assumption
+    char *skinName;
+    char *skinDir;
+    avdInfo_getSkinInfo(android_avdInfo, &skinName, &skinDir);
+    if ( skinDir ) skinHas = true;
+    else skinHas = false;
+
     // Parse the 'layout' file in the skin directory
     QString layoutPath = PathUtils::join(skinDir, skinName, "layout").c_str();
     AConfig* skinConfig = aconfig_node("", "");
@@ -1210,16 +1255,41 @@ void EmulatorQtWindow::getSkinPixmap() {
     AConfig* partsConfig = aconfig_find(skinConfig, "parts");
     if (partsConfig == nullptr) return; // Failed
     const char *skinFileName = nullptr;
-    for (AConfig* partNode = partsConfig->first_child;
-                  partNode != NULL;
-                  partNode = partNode->next) {
-        const AConfig* backgroundNode = aconfig_find(partNode, "background");
-        if (backgroundNode == NULL) continue;
-        skinFileName = aconfig_str(backgroundNode, "image", nullptr);
-        if (skinFileName != nullptr && skinFileName[0] != '\0') {
-            mSkinPixmapIsPortrait = !strcmp(partNode->name, "portrait");
-            break;
+    bool single_skin = false;
+    if ( countEnabledMultiDisplayLocked() == 0|| isSwiveled()==false) {
+        for (AConfig* partNode = partsConfig->first_child;
+                partNode != NULL;
+                partNode = partNode->next) {
+
+            if ( !strcmp(partNode->name,"single_skin")) {
+                single_skin = true;
+                const AConfig* backgroundNode = aconfig_find(partNode, "background");
+                if (backgroundNode == NULL) continue;
+                skinFileName = aconfig_str(backgroundNode, "image", nullptr);
+                if (skinFileName != nullptr && skinFileName[0] != '\0') {
+                    mSkinPixmapIsPortrait = strcmp(partNode->name, "landscape");
+                }
+                break;
+            }
         }
+        mSingleSkinmode= 1;
+    }
+
+    if ( !single_skin )
+    {
+        for (AConfig* partNode = partsConfig->first_child;
+                partNode != NULL;
+                partNode = partNode->next) {
+            const AConfig* backgroundNode = aconfig_find(partNode, "background");
+            if (backgroundNode == NULL) continue;
+            skinFileName = aconfig_str(backgroundNode, "image", nullptr);
+            if (skinFileName != nullptr && skinFileName[0] != '\0') {
+                //            mSkinPixmapIsPortrait = !strcmp(partNode->name, "portrait");
+                mSkinPixmapIsPortrait = strcmp(partNode->name, "landscape");
+                break;
+            }
+        }
+        mSingleSkinmode= 0;
     }
     if (skinFileName == nullptr || skinFileName[0] == '\0') return; // Failed
 
@@ -1293,10 +1363,53 @@ void EmulatorQtWindow::setOnTop(bool onTop) {
         setFrameOnTop(mCarClusterWindow, onTop);
     }
 }
+void EmulatorQtWindow::setFrameMode(int mode)
+{
+    SkinEvent* event = new SkinEvent();
+    event->type = kEventSetFrameMode;
+    event->u.frame_mode.mode= mode;
+    queueSkinEvent(event);
+}
+void EmulatorQtWindow::updateDualSkin(int mode)
+{
+    if (chkSkin()==false)  return;
+    if (mRawSkinPixmap != nullptr) {
+        delete mRawSkinPixmap;
+        mRawSkinPixmap=nullptr;
+    }
+
+    mSingleSkinmode= -1;
+    maskWindowFrame();
+    //mContainer.show();
+
+    DD("%s: kEventScreenChanged", __FUNCTION__);
+    SkinEvent* event = new SkinEvent();
+    event->type = kEventScreenChanged;
+    queueSkinEvent(event);
+    /*
+    if(mode==-1)
+    {
+        mOrientation = (SkinRotation)1;
+        rotateSkin((SkinRotation)1);
+    }
+    */
+}
+
+void EmulatorQtWindow::showWinMode(int mode)
+{
+	PDE("showWinMode %d",mode);
+        if (mode==0 )
+            mContainer.hide();
+        else if (mode==1 )
+            mContainer.show();
+}
+
 
 void EmulatorQtWindow::setFrameAlways(bool frameAlways)
 {
+    setFrameMode((int) frameAlways);
     mFrameAlways = frameAlways;
+    mSingleSkinmode= -1;
     if (mStartupDone) {
         maskWindowFrame();
         mContainer.show();
@@ -1732,7 +1845,14 @@ void EmulatorQtWindow::slot_setWindowTitle(QString title,
 void EmulatorQtWindow::slot_showWindow(SkinSurface* surface,
                                        QRect rect,
                                        QSemaphore* semaphore) {
+
     QSemaphoreReleaser semReleaser(semaphore);
+    DD("Step 2 : slot_showWindow [%d %d] -> [%d %d]",mContainer.width(), mContainer.height(),rect.width(),rect.height() );
+    if ( mContainer.width() == rect.width() && mContainer.height() == rect.height() ) {
+        DD("       : same");
+        return;
+    }
+
     if (mClosed) {
         return;
     }
@@ -2108,7 +2228,6 @@ SkinEvent* EmulatorQtWindow::createSkinEvent(SkinEventType type) {
     skin_event->type = type;
     return skin_event;
 }
-
 void EmulatorQtWindow::doResize(const QSize& size,
                                 bool isKbdShortcut) {
     if (mClosed) {
@@ -2136,6 +2255,10 @@ void EmulatorQtWindow::doResize(const QSize& size,
             newSize.height() > screenDimensions.height()) {
             newSize.scale(screenDimensions.size(), Qt::KeepAspectRatio);
         }
+    }
+    else if ( mContainer.width() == newSize.width() && mContainer.height() == newSize.height() ) {
+        DD("       : same ");
+        return;
     }
 
     double widthScale = (double)newSize.width() / (double)originalWidth;
@@ -2215,6 +2338,9 @@ void EmulatorQtWindow::resizeAndChangeAspectRatio(bool isFolded) {
 }
 
 void EmulatorQtWindow::resizeAndChangeAspectRatio(int x, int y, int w, int h) {
+    DD("Set Dual Layout w,h[%d %d]\n",w,h);
+    return;
+
     QRect windowGeo = this->geometry();
     QSize backingSize = mBackingSurface->bitmap->size();
     float scale = (float)windowGeo.width() / (float)backingSize.width();
@@ -2225,6 +2351,31 @@ void EmulatorQtWindow::resizeAndChangeAspectRatio(int x, int y, int w, int h) {
 bool EmulatorQtWindow::isFolded() const { return ToolWindow::isFolded(); }
 
 bool EmulatorQtWindow::isFoldableConfigured() const { return ToolWindow::isFoldableConfigured(); }
+
+void EmulatorQtWindow::resizeSwivel(bool isSwiveled) {
+    /* TBD*/
+}
+
+void EmulatorQtWindow::resizeSwivel(int x, int y, int w, int h) {
+    /* TBD*/
+}
+
+bool EmulatorQtWindow::isSwiveled() const { return ToolWindow::isSwiveled(); }
+
+bool EmulatorQtWindow::isSwivelableConfigured() const { return ToolWindow::isSwivelableConfigured(); }
+
+void EmulatorQtWindow::resizeDual(bool isDualed) {
+    /* TBD*/
+}
+
+void EmulatorQtWindow::resizeDual(int x, int y, int w, int h) {
+    /* TBD*/
+}
+
+bool EmulatorQtWindow::isDualed() const { return ToolWindow::isDualed(); }
+
+bool EmulatorQtWindow::isDualableConfigured() const { return ToolWindow::isDualableConfigured(); }
+
 
 SkinMouseButtonType EmulatorQtWindow::getSkinMouseButton(
         QMouseEvent* event) const {
@@ -2386,6 +2537,8 @@ void EmulatorQtWindow::setDisplayRegion(int xOffset, int yOffset, int width, int
 }
 
 void EmulatorQtWindow::setDisplayRegionAndUpdate(int xOffset, int yOffset, int width, int height) {
+    if( ToolWindow::isSwivelableConfigured() || ToolWindow::isDualableConfigured() )
+        return;
     SkinEvent* event = createSkinEvent(kEventSetDisplayRegionAndUpdate);
     event->u.display_region.xOffset = xOffset;
     event->u.display_region.yOffset = yOffset;
@@ -2748,18 +2901,25 @@ void EmulatorQtWindow::runAdbShellPowerDownAndQuit() {
             5000); // for qemu1, reboot -p will shutdown guest but hangs, allow 5s
 }
 
+int EmulatorQtWindow::getOrientation() {
+	int rot;
+
+	rot = (int)mOrientation ;
+	return(rot);
+}
+
 void EmulatorQtWindow::rotateSkin(SkinRotation rot) {
     // Hack. Notify the parent container that we're rotating, so it doesn't
     // start a regular scaling timer: we know that the scale is correct as
     // it was correct before the rotation.
     mOrientation = rot;
-    mContainer.prepareForRotation();
+    // mContainer.prepareForRotation();
 
     SkinEvent* event = createSkinEvent(kEventLayoutRotate);
     event->u.layout_rotation.rotation = rot;
     queueSkinEvent(event);
 
-    if (ToolWindow::isFolded()) {
+    if (ToolWindow::isFolded() ) {
         resizeAndChangeAspectRatio(true);
     }
 }
@@ -2838,19 +2998,28 @@ void EmulatorQtWindow::setUIMultiDisplay(uint32_t id,
             mMultiDisplay[id].width = w;
             mMultiDisplay[id].height = h;
             mMultiDisplay[id].dpi = dpi;
-            if (countEnabledMultiDisplayLocked() > 0) {
+#if 0
+            if( ToolWindow::isSwivelableConfigured() || ToolWindow::isDualableConfigured() )
+            {
+                if (countEnabledMultiDisplayLocked() > 0) {
+                    runOnUiThread([this] {
+                            if( !ToolWindow::isSwivelableConfigured() && !ToolWindow::isDualableConfigured() )
+                            {
+                            mToolWindow->hideRotationButton(true);
+                            setFrameAlways(true);
+                            }
+                            });
+                }
+            } else if (countEnabledMultiDisplayLocked() == 0) {
                 runOnUiThread([this] {
-                    mToolWindow->hideRotationButton(true);
-                    setFrameAlways(true);
-                });
+                        mToolWindow->hideRotationButton(false);
+                        });
+                restoreSkin();
             }
-        } else if (countEnabledMultiDisplayLocked() == 0) {
-            runOnUiThread([this] {
-                mToolWindow->hideRotationButton(false);
-            });
-            restoreSkin();
+#endif
         }
     }
+
     SkinEvent* event = new SkinEvent();
     event->type = kEventSetMultiDisplay;
     event->u.multi_display.id = id;
@@ -2860,6 +3029,64 @@ void EmulatorQtWindow::setUIMultiDisplay(uint32_t id,
     event->u.multi_display.height = h;
     event->u.multi_display.add = add;
     skin_event_add(event);
+
+    if ( id ) {
+        if ( add ) {
+            PDE("emulator: Dual Ready");
+            dualReady = true;
+        }
+        else {
+            PDE("emulator: Dual Off");
+            dualReady = false;
+        }
+
+	runOnUiThread([this]() {
+        uint32_t rw = 0,rh=0;
+        getCombinedDisplaySize(&rw, &rh);
+        int main_w = android_hw->hw_lcd_width;
+        int main_h = android_hw->hw_lcd_height;
+        int width = android_hw->hw_dual_width;
+        int height = android_hw->hw_dual_height;
+        int gap = android_hw->hw_dual_gap;
+
+        SkinEvent* event = new SkinEvent();
+        event->type = kEventReconfigureLayout;
+        if ( rw == main_w ) {
+	    if ( dualReady ) PDE("??? Dual Ready");
+            event->u .reconfigure.w = main_w;
+            event->u.reconfigure.h = main_h;
+            event->u.reconfigure.dual = false;
+        }
+        else {
+	    if ( !dualReady ) PDE("??? Dual Not Ready");
+            event->u.reconfigure.w = main_w+gap+height;
+            event->u.reconfigure.h = main_h;
+            event->u.reconfigure.dual = true;
+        }
+        skin_event_add(event);
+
+	SkinEvent* revent = new SkinEvent();
+        revent->type = kEventLayoutRotate;
+        revent->u.layout_rotation.rotation = mOrientation;
+        skin_event_add(revent);
+	});
+    }
+}
+
+void EmulatorQtWindow::setSensorRotate(int rot) {
+/*
+#ifdef _WIN32
+        Sleep(500);
+#else
+        usleep(500000);
+#endif
+*/
+    rot &=3;
+
+    if ( rot == 1 ) android_sensors_override_set(0,-10.0,0.0,0.0);
+    else if ( rot == 2 ) android_sensors_override_set(0,0.0,-10.0,0.0);
+    else if ( rot == 3 ) android_sensors_override_set(0,10.0,0.0,0.0);
+    else                 android_sensors_override_set(0,0.0,10.0,0.0);
 }
 
 void EmulatorQtWindow::updateUIMultiDisplayPage(uint32_t id) {
@@ -2918,6 +3145,141 @@ int EmulatorQtWindow::countEnabledMultiDisplayLocked() {
             });
 }
 
+bool EmulatorQtWindow::getDualSize(int* main_w,int* main_h,int* sub_w,int* sub_h,int* gap,int* rot) {
+        *main_w = android_hw->hw_lcd_width;
+        *main_h = android_hw->hw_lcd_height;
+        *sub_w = android_hw->hw_dual_width;
+        *sub_h = android_hw->hw_dual_height;
+        *gap = android_hw->hw_dual_gap;
+        *rot = android_hw->hw_dual_rot;
+	if ( *main_w && *main_h && *sub_w && *sub_h ) return true;
+	else return false;
+}
+
+bool EmulatorQtWindow::switchDual(int32_t opt) {
+    bool enabled (opt? 1:0);
+    int width = android_hw->hw_dual_width;
+    int height = android_hw->hw_dual_height;
+    int dpi = android_hw->hw_dual_dpi;
+
+    DD("switchDual %d dual_sts %d",opt,dualReady);
+    if ( emuExitStatus ) return true;
+
+    if ( enabled ) {
+        setSensorRotate(1);
+    }
+    else {
+        setSensorRotate(0);
+    }
+
+    if ( dualReady ) {
+	return true;
+    }
+
+    if ( enabled  )  {
+	PDE("emulator: Activate Dual");
+        switchMultiDisplay(enabled,1,0,0,width,height,dpi,0);
+    }
+    else {
+	PDE("emulator: De-activate Dual");
+        switchMultiDisplay(enabled,1,-1,-1,0,0,0,0);
+    }
+    return true;
+}
+
+bool EmulatorQtWindow::switchOption(int32_t opt0,
+		int32_t opt1,int32_t opt2,int32_t opt3,int32_t opt4,int32_t opt5,int32_t opt6,int32_t opt7,int32_t opt8,int32_t opt9) {
+
+    char buff[100];
+    sprintf(buff,"Option Cmd %d %d %d %d %d %d %d %d %d %d",
+		    opt0,opt1,opt2,opt3,opt4,opt5,opt6,opt7,opt8,opt9 );
+    LOG(INFO) << buff;
+
+    // add,update or del
+    if ( opt0 == 10 ) {
+	  showEmulatorWindow(opt1);
+    }
+
+    return true;
+}
+
+
+
+void EmulatorQtWindow::showEmulatorWindow(int opt)
+{
+	int i;
+	PDE("Emulator ");
+	EmulatorWindow* emulator = emulator_window_get();
+//	PDE("Aconfig");
+//	Aconfig* eAconfig = emulator->aconfig;
+//	PDE("  name %s value %s",eAconfig->name,eAconfig->value);
+	PDE("SkinFile");
+        SkinFile* eLayout_file = emulator->layout_file;
+	PDE("version %d",eLayout_file->version);
+
+	PDE("");
+	PDE("SkinPart");
+	SkinPart* ePart = eLayout_file->parts;
+
+	for(;;) {
+		if ( !ePart ) break;
+		PDE("	name %s",ePart->name);
+//		PDE("	background ",ePart->bacground[0].
+		PDE("	display ");
+		PDE("	skin rect w,h [%d %d]",ePart->rect.size.w,ePart->rect.size.h);
+
+		SkinDisplay* eDisplay = ePart->display;
+		PDE("		rect w,h [%d %d]",eDisplay->rect.size.w,eDisplay->rect.size.h);
+		PDE("		rotation [%d]",eDisplay->rotation);
+		PDE("		bpp [%d]",eDisplay->bpp);
+		PDE("		valid [%d]",eDisplay->valid);
+		PDE("		framebuffer [0x%lx]",(int64_t )eDisplay->framebuffer);
+		PDE("		own_framebuffer [%d]",eDisplay->owns_framebuffer);
+		PDE("		funx [0x%lx]",(int64_t)eDisplay->framebuffer_funcs);
+
+		ePart = ePart->next;
+		PDE("");
+		if ( !opt ) return;
+	}
+
+	PDE("");
+	PDE("SkinLayout");
+	SkinLayout* eLayouts = eLayout_file->layouts;
+	for(;;) {
+		if ( !eLayouts ) break;
+		PDE("	name %s",eLayouts->name);
+		PDE("	color 0x%x",eLayouts->color);
+		PDE("	event_type %d",eLayouts->event_type);
+		PDE("	event_code %d",eLayouts->event_code);
+		PDE("	event_value %d",eLayouts->event_value);
+		PDE("	has_dpad_rotation %d",eLayouts->has_dpad_rotation);
+		PDE("	SkinRotation dpad  %d",eLayouts->dpad_rotation);
+//		PDE("	dpad_up_keycode  %d",eLayouts->dpad_up_keycode);
+		PDE("	Skinsize size  w,h [%d %d]",eLayouts->size.w,eLayouts->size.h);
+
+		PDE("");
+		PDE("	SkinLocation");
+		SkinLocation* eSkinLocation = eLayouts->locations;
+		for(;;) {
+			if ( !eSkinLocation ) break;
+			PDE("		anchor  %d %d",eSkinLocation->anchor.x,eSkinLocation->anchor.y);
+			PDE("		rotation  %d",eSkinLocation->rotation);
+			eSkinLocation = eSkinLocation->next;
+			PDE("");
+		}
+		PDE("	SkinRotation onion_rotation %d",eLayouts->onion_rotation);
+		PDE("	SkinRotation orientation %d",eLayouts->orientation);
+		eLayouts = eLayouts->next;
+		PDE("");
+	}
+	PDE("num_parts %d",eLayout_file->num_parts);
+	PDE("num_layouts %d",eLayout_file->num_layouts);
+
+	PDE("win_x,y [%d %d]",emulator->win_x,emulator->win_y);
+	PDE("onion_alpha [%d]",emulator->onion_alpha);
+	PDE("done [%d]",emulator->done);
+}
+
 bool EmulatorQtWindow::switchMultiDisplay(bool enabled,
                                           uint32_t id,
                                           int32_t x,
@@ -2926,9 +3288,20 @@ bool EmulatorQtWindow::switchMultiDisplay(bool enabled,
                                           uint32_t height,
                                           uint32_t dpi,
                                           uint32_t flag) {
+
+    if(!ToolWindow::isSwivelableConfigured()  && !ToolWindow::isDualableConfigured() )
+    {
+        if (!android::featurecontrol::isEnabled(
+                    android::featurecontrol::MultiDisplay) ||
+                ToolWindow::isFoldableConfigured()) {
+            return false;
+        }
+    }
+
     LOG(VERBOSE) << "switchMultiDisplay id " << id << " "
                  << x << " " << y << " " << width << " " << height << " "
                 << dpi << " " << flag << " " << (enabled? "add":"del");
+/*
     if (!android::featurecontrol::isEnabled(
                 android::featurecontrol::MultiDisplay) ||
         ToolWindow::isFoldableConfigured()) {
@@ -2942,6 +3315,7 @@ bool EmulatorQtWindow::switchMultiDisplay(bool enabled,
                     Ui::OverlayMessageType::Error, 1000);
          return false;
     }
+*/
     {
       AutoLock lock(mMultiDisplayLock);
       mMultiDisplay[id].pos_x = x;
@@ -2981,6 +3355,8 @@ bool EmulatorQtWindow::getMonitorRect(uint32_t* width, uint32_t* height) {
 }
 
 void EmulatorQtWindow::setNoSkin() {
+DD("Skip to support skins");
+return;
     char *skinName, *skinDir;
     avdInfo_getSkinInfo(android_avdInfo, &skinName, &skinDir);
     if (skinDir != NULL) {
@@ -2990,9 +3366,14 @@ void EmulatorQtWindow::setNoSkin() {
     }
 }
 
+
 void EmulatorQtWindow::restoreSkin() {
+DD("Do not restore skin due to multi screen");
+return;
+
     char *skinName, *skinDir;
     avdInfo_getSkinInfo(android_avdInfo, &skinName, &skinDir);
+
     if (skinDir != NULL) {
         SkinEvent* event = new SkinEvent();
         event->type = kEventRestoreSkin;
@@ -3007,10 +3388,11 @@ void EmulatorQtWindow::getCombinedDisplaySize(uint32_t* w, uint32_t* h) {
         total_h = std::max(total_h, iter.second.height + iter.second.pos_y);
         total_w = std::max(total_w, iter.second.width + iter.second.pos_x);
     }
+
     if (h) {
         *h = total_h;
     }
-    if (w) {
+      if (w) {
         *w = total_w;
     }
 }
@@ -3060,6 +3442,16 @@ bool EmulatorQtWindow::multiDisplayParamValidate(uint32_t id, uint32_t w, uint32
 }
 
 void EmulatorQtWindow::saveMultidisplayToConfig() {
+    if( ToolWindow::isSwivelableConfigured() )
+    {
+        emuExitStatus = true;
+        runOnUiThread([this] {
+           mToolWindow->handleUICommand(QtUICommand::UNSWIVEL);
+
+       });
+    }
+    return;
+
     for (int i = 1; i < MultiDisplayPage::sMaxItem + 1; i++) {
         if (mMultiDisplay[i].enabled && mMultiDisplay[i].dpi != 0) {
             avdInfo_replaceMultiDisplayInConfigIni(android_avdInfo,

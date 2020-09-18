@@ -141,7 +141,6 @@ void loadMask() {
         loadMaskImage(foregroundConfig, skinDir, skinName);
     }
 }
-
 void setAndroidOverlay(AdbInterface* adbInterface) {
     AConfig* foregroundConfig = getForegroundConfig();
     if (foregroundConfig != nullptr) {

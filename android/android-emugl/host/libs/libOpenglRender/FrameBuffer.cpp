@@ -52,6 +52,8 @@ using android::base::Stream;
 using android::base::System;
 using android::base::WorkerProcessingResult;
 
+#define PD(...) {printf("[%s:%d:%s] ",__FILE__,__LINE__,__FUNCTION__);printf(__VA_ARGS__);printf("\n");}
+#define PDE(...) {printf( __VA_ARGS__);printf("\n");}
 namespace {
 
 // Helper class to call the bind_locked() / unbind_locked() properly.
@@ -541,6 +543,7 @@ bool FrameBuffer::initialize(int width, int height, bool useSubWindow,
     fb->m_glRenderer = std::string((const char*)s_gles2.glGetString(GL_RENDERER));
     fb->m_glVersion = std::string((const char*)s_gles2.glGetString(GL_VERSION));
 
+    PDE("GL Extensions %s", fb->m_glVersion.c_str());
     DBG("GL Vendor %s\n", fb->m_glVendor.c_str());
     DBG("GL Renderer %s\n", fb->m_glRenderer.c_str());
     DBG("GL Extensions %s\n", fb->m_glVersion.c_str());
@@ -610,6 +613,7 @@ bool FrameBuffer::importMemoryToColorBuffer(
         bool linearTiling,
         bool vulkanOnly,
         uint32_t colorBufferHandle) {
+	PD("");
     AutoLock mutex(m_lock);
 
     ColorBufferMap::iterator c(m_colorbuffers.find(colorBufferHandle));
@@ -625,6 +629,7 @@ bool FrameBuffer::importMemoryToColorBuffer(
 void FrameBuffer::setColorBufferInUse(
     uint32_t colorBufferHandle,
     bool inUse) {
+	PD("");
 
     AutoLock mutex(m_lock);
 
@@ -677,7 +682,7 @@ FrameBuffer::FrameBuffer(int p_width, int p_height, bool useSubWindow)
       m_postThread([this](FrameBuffer::Post&& post) {
           return postWorkerFunc(post);
       }) {
-    m_displays.emplace(0, DisplayInfo(0, 0, 0, m_framebufferWidth, m_framebufferHeight, 0));
+    m_displays.emplace(0, DisplayInfo(0, 0, 0, m_framebufferWidth, m_framebufferHeight, 0,0));
     uint32_t w, h;
     if (emugl::get_emugl_window_operations().getMonitorRect(&w, &h) && w != 0 && h != 0) {
         m_monitorAspectRatio = (double) h / (double) w;
@@ -1750,6 +1755,7 @@ bool FrameBuffer::updateColorBuffer(HandleType p_colorbuffer,
 
 bool FrameBuffer::replaceColorBufferContents(
     HandleType p_colorbuffer, const void* pixels, size_t numBytes) {
+	PD("");
     AutoLock mutex(m_lock);
 
     ColorBufferMap::iterator c(m_colorbuffers.find(p_colorbuffer));
@@ -1764,6 +1770,7 @@ bool FrameBuffer::replaceColorBufferContents(
 bool FrameBuffer::readColorBufferContents(
     HandleType p_colorbuffer, size_t* numBytes, void* pixels) {
 
+	PD("");
     AutoLock mutex(m_lock);
 
     ColorBufferMap::iterator c(m_colorbuffers.find(p_colorbuffer));
@@ -1778,6 +1785,7 @@ bool FrameBuffer::readColorBufferContents(
 bool FrameBuffer::getColorBufferInfo(
     HandleType p_colorbuffer, int* width, int* height, GLint* internalformat) {
 
+	PD("");
     AutoLock mutex(m_lock);
 
     ColorBufferMap::iterator c(m_colorbuffers.find(p_colorbuffer));
@@ -1820,6 +1828,7 @@ bool FrameBuffer::bindColorBufferToTexture2(HandleType p_colorbuffer) {
 }
 
 bool FrameBuffer::bindColorBufferToRenderbuffer(HandleType p_colorbuffer) {
+	PD("p_colorbuffer 0x%x",p_colorbuffer);
     AutoLock mutex(m_lock);
 
     ColorBufferMap::iterator c(m_colorbuffers.find(p_colorbuffer));
@@ -2404,13 +2413,14 @@ bool FrameBuffer::compose(uint32_t bufferSize, void* buffer) {
     ComposeDevice* p = (ComposeDevice*)buffer;
     AutoLock mutex(m_lock);
 
+
     switch (p->version) {
     case 1: {
         Post composeCmd;
         composeCmd.cmd = PostCmd::Compose;
         composeCmd.d = p;
         sendPostWorkerCmd(composeCmd);
-        post(p->targetHandle, false);
+	post(p->targetHandle, false);
         return true;
     }
 
@@ -2520,6 +2530,7 @@ void FrameBuffer::onSave(Stream* stream,
         s->putBe32(pair.second.width);
         s->putBe32(pair.second.height);
         s->putBe32(pair.second.dpi);
+        s->putBe32(pair.second.rotation);
     });
 
     // Save Vulkan state
@@ -2697,7 +2708,8 @@ bool FrameBuffer::onLoad(Stream* stream,
         const uint32_t width = stream->getBe32();
         const uint32_t height = stream->getBe32();
         const uint32_t dpi = stream->getBe32();
-        return {idx, {cb, pos_x, pos_y, width, height, dpi}};
+        const uint32_t rotation = stream->getBe32();
+        return {idx, {cb, pos_x, pos_y, width, height, dpi,rotation}};
     });
 
     if (s_egl.eglPostLoadAllImages) {
@@ -2732,6 +2744,8 @@ bool FrameBuffer::onLoad(Stream* stream,
     bool hasDeletedMultiDisplay = false;
     for (const auto& iter : m_displays) {
         if (displays_onLoad.find(iter.first) == displays_onLoad.end()) {
+
+
             emugl::get_emugl_window_operations().setUIMultiDisplay(iter.first,
                                                                  0, 0, 0,
                                                                  0, false,
@@ -2742,6 +2756,7 @@ bool FrameBuffer::onLoad(Stream* stream,
     }
     m_displays.clear();
     m_displays = displays_onLoad;
+
     if (m_displays.size() > 1 || hasDeletedMultiDisplay) {
         emugl::get_emugl_window_operations().setNoSkin();
         // Restore multi display state
@@ -2756,6 +2771,8 @@ bool FrameBuffer::onLoad(Stream* stream,
             .setUIDisplayRegion(
                 0, 0, combinedDisplayWidth, combinedDisplayHeight);
     }
+
+
     m_multiDisplayOnLoadDone = true;
     m_multiDisplayOnLoadLock.unlock();
 
@@ -2908,6 +2925,7 @@ int FrameBuffer::setDisplayColorBuffer(uint32_t displayId, uint32_t colorBuffer)
 }
 
 int FrameBuffer::getDisplayColorBuffer(uint32_t displayId, uint32_t* colorBuffer) {
+    PD("");
     DBG("%s: display %d cb %p\n", __FUNCTION__, displayId, colorBuffer);
     AutoLock mutex(m_lock);
     if (m_displays.find(displayId) == m_displays.end()) {
@@ -2998,11 +3016,61 @@ void FrameBuffer::recomputeLayout() {
                 std::make_pair(iter.second.width, iter.second.height);
         }
     }
+    int has_subdisplay;
+    has_subdisplay = 0;
     for (const auto& iter :
          android::base::resolveLayout(rectangles, m_monitorAspectRatio)) {
         m_displays[iter.first].pos_x = iter.second.first;
         m_displays[iter.first].pos_y = iter.second.second;
+	if ( iter.first  ) has_subdisplay = 1;
+//	PDE("m_dis[%d] w,h[%d %d]",iter.first,m_displays[iter.first].width,m_displays[iter.first].height);
     }
+
+// to support multi display rotation & skins
+    if (has_subdisplay )  {
+       recomputeDualLayout(-1);
+    }
+}
+
+void FrameBuffer::getDualSize(int* main_w,int* main_h,int*sub_w, int* sub_h, int* gap, int*  rot) {
+
+    emugl::get_emugl_window_operations().getDualSize(main_w,main_h,sub_w,sub_h,gap,rot);
+}
+
+void FrameBuffer::recomputeDualLayout(int rot) {
+static int32_t get_dual_status = 0;
+static int main_w=0,main_h=0,sub_w=0,sub_h=0,gap=0,rotate=0;
+
+    get_dual_status = emugl::get_emugl_window_operations().getDualSize(&main_w,&main_h,&sub_w,&sub_h,&gap,&rotate);
+
+    if ( (main_h == sub_h) && ( main_w < main_h ) )  {
+	// Dual
+        m_displays[0].pos_x = main_w + gap;
+	m_displays[0].pos_y = 0;
+	m_displays[1].pos_x = 0;
+	m_displays[1].pos_y = 0;
+    }
+    else if ( main_w > main_h  ) {
+	//landscape
+	m_displays[0].pos_x = 0;
+        m_displays[0].pos_y = sub_h + gap;
+	m_displays[1].pos_x = (main_w-sub_w)/2;
+	m_displays[1].pos_y = 0;
+    }
+    else {
+	// portrate or others
+        m_displays[0].pos_x = 0;
+        m_displays[0].pos_y = 0;
+        m_displays[1].pos_x = main_w + gap + ( sub_h - sub_w);
+	int loc = main_w-sub_w;
+	if ( loc > 0 ) m_displays[1].pos_y = (loc)/2;
+
+	// sub rotate 270
+	m_displays[1].width = sub_w;
+	m_displays[1].height = sub_h;
+    }
+    m_displays[0].rotation = 0;
+    m_displays[1].rotation = 0;
 }
 
 void FrameBuffer::setDisplayPoseInSkinUI(int totalHeight) {
@@ -3044,6 +3112,7 @@ void FrameBuffer::getCombinedDisplaySize(int* w, int* h) {
             total_w = std::max(total_w, iter.second.width + iter.second.pos_x);
         }
     }
+
     if (h)
         *h = (int)total_h;
     if (w)

@@ -61,6 +61,16 @@ typedef struct QAndroidEmulatorWindowAgent {
     bool (*fold)(bool is_fold);
     // Query folded state
     bool (*isFolded)(void);
+    // LG Wing emulator
+    // Swivel/Swivel device
+    bool (*swivel)(bool is_swivel);
+    // Query swivel state
+    bool (*isSwiveled)(void);
+    // Dual/Dual device
+    bool (*dual)(bool is_dual);
+    // Query dual state
+    bool (*isDualed)(void);
+    /**************/
 
     // Set the UI display region
     void (*setUIDisplayRegion)(int, int, int, int);
@@ -80,9 +90,24 @@ typedef struct QAndroidEmulatorWindowAgent {
                             uint32_t*,
                             uint32_t*,
                             bool*);
+    bool (*getDualSize)(int*, int*, int*, int*,int*, int*);
+    int  (*getOrientation)(void);
     bool (*getMonitorRect)(uint32_t*, uint32_t*);
     void (*setNoSkin)(void);
     void (*restoreSkin)(void);
+    // to support multi display rotation & skins
+    bool (*switchDual)(int32_t);
+    bool (*switchOption)(int32_t,
+                               int32_t,
+                               int32_t,
+                               int32_t,
+                               int32_t,
+                               int32_t,
+                               int32_t,
+                               int32_t,
+                               int32_t,
+                               int32_t);
+
     bool (*switchMultiDisplay)(bool,
                                uint32_t,
                                int32_t,

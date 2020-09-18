@@ -81,6 +81,11 @@ public:
     static const UiEmuAgent* getUiEmuAgent() { return sUiEmuAgent; }
     static bool isFolded();
     static bool isFoldableConfigured();
+    static bool isSwiveled();
+    static bool isSwivelableConfigured();
+    static bool isDualed();
+    static bool isDualableConfigured();
+    static void setInitSkin(bool bInit);
 
     const ShortcutKeyStore<QtUICommand>* getShortcutKeyStore() {
         return &mShortcutKeyStore;
@@ -127,6 +132,8 @@ private:
     static void sendFoldedArea();
     void handleUICommand(QtUICommand cmd, bool down);
     void ensureExtendedWindowExists();
+    static void sendSwiveledArea(int mode);
+    static void sendDualedArea(int mode);
 
     void stopExtendedWindowCreation();
 
@@ -174,7 +181,8 @@ private:
     bool mAllowExtWindow = false;
     bool mClipboardSupported = false;
     bool mFolded = false;
-
+    bool mSwiveled = false;
+    bool mDualed = false;
     static const UiEmuAgent* sUiEmuAgent;
 
 public slots:
@@ -205,7 +213,8 @@ private slots:
     void on_zoom_button_clicked();
     void on_tablet_mode_button_clicked();
     void on_fold_switch_clicked();
-
+    void on_swivel_switch_clicked();
+    void on_dual_switch_clicked();
     void onGuestClipboardChanged(QString text);
     void onHostClipboardChanged();
 };

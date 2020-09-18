@@ -600,7 +600,6 @@ void TextureDraw::drawLayer(ComposeLayer* l, int frameWidth, int frameHeight,
             __FUNCTION__, err);
     }
 #endif
-
     // restore the default value for the next draw layer
     if (l->composeMode != HWC2_COMPOSITION_DEVICE) {
         s_gles2.glUniform1i(mComposeMode, HWC2_COMPOSITION_DEVICE);
@@ -610,6 +609,87 @@ void TextureDraw::drawLayer(ComposeLayer* l, int frameWidth, int frameHeight,
         mBlendResetNeeded = false;
         s_gles2.glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     }
+}
+
+void TextureDraw::drawLayerMask(ComposeLayer* l, int frameWidth, int frameHeight,
+                            int cbWidth, int cbHeight, GLuint texture) {
+
+    if ( mHaveNewMask) {
+        // Create a texture from the mask image and make it
+        // available to be blended
+        GLint prevUnpackAlignment;
+        s_gles2.glGetIntegerv(GL_UNPACK_ALIGNMENT, &prevUnpackAlignment);
+        s_gles2.glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+        s_gles2.glBindTexture(GL_TEXTURE_2D, mMaskTexture);
+
+        s_gles2.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        s_gles2.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        s_gles2.glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, mMaskWidth, mMaskHeight, 0,
+                             GL_RGBA, GL_UNSIGNED_BYTE, mMaskPixels);
+
+        s_gles2.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        s_gles2.glEnable(GL_BLEND);
+
+        s_gles2.glPixelStorei(GL_UNPACK_ALIGNMENT, prevUnpackAlignment);
+
+        mHaveNewMask = false;
+        mMaskIsValid = true;
+    }
+
+    if ( !mMaskIsValid ) {
+        return;
+    }
+
+    float edges[4];
+    edges[0] = 1 - 2.0 * (frameWidth - l->displayFrame.left)/frameWidth;
+    edges[1] = 1 - 2.0 * (frameHeight - l->displayFrame.top)/frameHeight;
+    edges[2] = 1 - 2.0 * (frameWidth - l->displayFrame.right)/frameWidth;
+    edges[3] = 1- 2.0 * (frameHeight - l->displayFrame.bottom)/frameHeight;
+
+    // setup the |translation| uniform value.
+    s_gles2.glUniform2f(mTranslationSlot, (-edges[2] - edges[0])/2,
+                        (-edges[3] - edges[1])/2);
+    s_gles2.glUniform2f(mScaleSlot, (edges[2] - edges[0])/2,
+                        (edges[1] - edges[3])/2);
+
+    intptr_t indexShift;
+    switch(l->transform) {
+    case HWC_TRANSFORM_ROT_90:
+        indexShift = 1 * kIndicesPerDraw;
+        break;
+    case HWC_TRANSFORM_ROT_180:
+        indexShift = 2 * kIndicesPerDraw;
+        break;
+    case HWC_TRANSFORM_ROT_270:
+        indexShift = 3 * kIndicesPerDraw;
+        break;
+    case HWC_TRANSFORM_FLIP_H:
+        indexShift = 4 * kIndicesPerDraw;
+        break;
+    case HWC_TRANSFORM_FLIP_V:
+        indexShift = 5 * kIndicesPerDraw;
+        break;
+    case HWC_TRANSFORM_FLIP_H_ROT_90:
+        indexShift = 6 * kIndicesPerDraw;
+        break;
+    case HWC_TRANSFORM_FLIP_V_ROT_90:
+        indexShift = 7 * kIndicesPerDraw;
+        break;
+    default:
+        indexShift = 0;
+    }
+
+    if (mBlendResetNeeded) {
+         s_gles2.glEnable(GL_BLEND);
+         mBlendResetNeeded = false;
+    }
+    s_gles2.glBindTexture(GL_TEXTURE_2D, mMaskTexture);
+    s_gles2.glDrawElements(GL_TRIANGLES, kIndicesPerDraw, GL_UNSIGNED_BYTE,
+                               (const GLvoid*)indexShift);
+    // Reset to the "normal" texture
+    s_gles2.glBindTexture(GL_TEXTURE_2D, texture);
 }
 
 // Do Post right after drawing each layer, so keep using this program

@@ -3593,6 +3593,68 @@ static const CommandDefRec  qemu_commands[] =
                 NULL, NULL, sub_commands                                    \
     }
 
+// to support multi display rotation & skins
+static int
+do_dual( ControlClient  client, char*  args ) {
+    // kMaxArgs is max number of arguments that we have to process (options +
+    // parameters, if any, and the filename)
+    const int kMaxArgs = 1;
+    int argc;
+    int opt0=0;
+
+    // Count number of arguments
+    std::vector<std::string> splitArgs;
+    android::base::split(args, " ", [&splitArgs](android::base::StringView s) {
+        if (!s.empty() && splitArgs.size() < kMaxArgs + 1)
+            splitArgs.push_back(s);
+    });
+    argc = splitArgs.size();
+
+    if ( argc > 0 ) opt0 = std::stoi(splitArgs[0]);
+    if (!client->global->emu_agent->switchDual( opt0 ) ) {
+        return -1;
+    }
+    return 0;
+}
+
+static int
+do_option( ControlClient  client, char*  args ) {
+    // kMaxArgs is max number of arguments that we have to process (options +
+    // parameters, if any, and the filename)
+    const int kMaxArgs = 10;
+    int opt0=0,opt1=0,opt2=0,opt3=0,opt4=0,opt5=0,opt6=0,opt7=0,opt8=0,opt9=0;
+    int argc;
+
+    // Count number of arguments
+    std::vector<std::string> splitArgs;
+    android::base::split(args, " ", [&splitArgs](android::base::StringView s) {
+        if (!s.empty() && splitArgs.size() < kMaxArgs + 1)
+            splitArgs.push_back(s);
+    });
+
+    argc = splitArgs.size();
+
+    if ( argc > 0 ) opt0 = std::stoi(splitArgs[0]);
+    if ( argc > 1 ) opt1 = std::stoi(splitArgs[1]);
+    if ( argc > 2 ) opt2 = std::stoi(splitArgs[2]);
+    if ( argc > 3 ) opt3 = std::stoi(splitArgs[3]);
+    if ( argc > 4 ) opt4 = std::stoi(splitArgs[4]);
+    if ( argc > 5 ) opt5 = std::stoi(splitArgs[5]);
+    if ( argc > 6 ) opt6 = std::stoi(splitArgs[6]);
+    if ( argc > 7 ) opt7 = std::stoi(splitArgs[7]);
+    if ( argc > 8 ) opt8 = std::stoi(splitArgs[8]);
+    if ( argc > 9 ) opt9 = std::stoi(splitArgs[9]);
+
+    //control_write(client, "option %d %d %d %d %d %d %d %d %d %d\r\n",
+    //		   opt0,opt1,opt2,opt3,opt4,opt5,opt6,opt7,opt8,opt9);
+
+    if (!client->global->emu_agent->switchOption(
+	     opt0,opt1,opt2,opt3,opt4,opt5,opt6,opt7,opt8,opt9)) {
+        return -1;
+    }
+    return 0;
+}
+
 static int
 do_multi_display_add( ControlClient  client, char*  args ) {
     // kMaxArgs is max number of arguments that we have to process (options +
@@ -3929,6 +3991,10 @@ extern const CommandDefRec main_commands[] = {
         {"fold", "fold the device", NULL, NULL, do_fold, NULL},
 
         {"unfold", "unfold the device", NULL, NULL, do_unfold, NULL},
+
+	// to support multi display rotation & skins
+        {"option", "option", NULL, NULL, do_option,NULL},
+        {"dual", "dual", NULL, NULL, do_dual,NULL},
 
         {"multidisplay", "configure the multi-display",
          "allows you to create/modify/delete displays besides the default "

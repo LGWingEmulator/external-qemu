@@ -86,6 +86,7 @@ public slots:
     // Sets the device orientation to: face up, pointing in the
     // desired direction (north = 0.0, east = 90.0)
     void setTargetHeadingDegrees(double heading);
+    void setCoarseOrientation(AndroidCoarseOrientation orientation);
 
 private slots:
     void on_rotateToPortrait_clicked();
@@ -126,7 +127,7 @@ private:
             double v1,
             double v2 = 0.0,
             double v3 = 0.0);
-    void setCoarseOrientation(AndroidCoarseOrientation orientation);
+//    void setCoarseOrientation(AndroidCoarseOrientation orientation);
 
     void onTargetStateChanged();
     void onPhysicalStateChanging();

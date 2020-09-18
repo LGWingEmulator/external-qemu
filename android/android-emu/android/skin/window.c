@@ -28,6 +28,10 @@
 #include "android/utils/duff.h"                 // for DUFF4
 #include "android/utils/system.h"               // for AFREE, AARRAY_NEW0
 
+#define D(...) ((void)0)
+#define PD(...) {printf("[%s:%d:%s] ",__FILE__,__LINE__,__FUNCTION__);printf(__VA_ARGS__);printf("\n");}
+#define PDE(...) {printf( __VA_ARGS__);printf("\n");}
+
 /* when shrinking, we reduce the pixel ratio by this fixed amount */
 #define  SHRINK_SCALE  0.6
 
@@ -35,6 +39,8 @@
 #define  LCD_BRIGHTNESS_MIN      0
 #define  LCD_BRIGHTNESS_DEFAULT  128
 #define  LCD_BRIGHTNESS_MAX      255
+static int mDualmode=1;
+static int mFramemode=0
 
 typedef struct Background {
     SkinImage*   image;
@@ -76,12 +82,31 @@ background_redraw(Background* back, SkinRect* rect, SkinSurface* surface)
         src_rect.pos.x = r.pos.x - back->origin.x;
         src_rect.pos.y = r.pos.y - back->origin.y;
         src_rect.size = r.size;
-
+#if 0
         skin_surface_blit(surface,
                           &r.pos,
                           skin_image_surface(back->image),
                           &src_rect,
                           SKIN_BLIT_SRCOVER);
+#else
+        if (mFramemode==0 && mDualmode==1)
+        {
+            skin_surface_blit(surface,
+                    &r.pos,
+                    skin_image_surface(back->image),
+                    &src_rect,
+                    SKIN_BLIT_COPY);
+        }
+        else
+        {
+            skin_surface_blit(surface,
+                    &r.pos,
+                    skin_image_surface(back->image),
+                    &src_rect,
+                    SKIN_BLIT_SRCOVER);
+
+        }
+#endif
     }
 }
 
@@ -106,6 +131,8 @@ typedef struct ADisplay {
     SubDisplay*    sub_display; /* partition the display into multi displays */
 } ADisplay;
 
+static    SubDisplay*    Save_sub_display = 0; /* partition the display into multi displays */
+
 static void adisplay_done(ADisplay* disp) {
     if (disp->gpu_frame) {
         free(disp->gpu_frame);
@@ -121,9 +148,15 @@ static int adisplay_init(ADisplay* disp,
                          SkinDisplay* sdisp,
                          SkinLocation* loc,
                          SkinRect* frame) {
+
+D(" disp 0x%x sdisp 0x%x loc 0x%x frame 0x%x",(int)disp,(int)sdisp,(int)loc,(int)frame);
+D("loc rotation %d",loc->rotation);
+
+D("before disp->rect.pos.x y [%d %d]",disp->rect.pos.x,disp->rect.pos.y);
     skin_rect_rotate( &disp->rect, &sdisp->rect, loc->rotation );
     disp->rect.pos.x += loc->anchor.x;
     disp->rect.pos.y += loc->anchor.y;
+D("after disp->rect.pos.x y [%d %d]",disp->rect.pos.x,disp->rect.pos.y);
 
     disp->rotation = (loc->rotation + sdisp->rotation) & 3;
     switch (disp->rotation) {
@@ -146,8 +179,11 @@ static int adisplay_init(ADisplay* disp,
             disp->origin.y = disp->rect.pos.y + disp->rect.size.h;
             break;
     }
+D("Skin size rotate dispsize[%d %d] sdisp size[%d %d]",disp->datasize.w, disp->datasize.h,disp->rect.size.w, disp->rect.size.h);
+
     skin_size_rotate( &disp->datasize, &sdisp->rect.size, sdisp->rotation );
     skin_rect_intersect( &disp->rect, &disp->rect, frame );
+D("Skin size rotate dispsize[%d %d] sdisp size[%d %d]",disp->datasize.w, disp->datasize.h,disp->rect.size.w, disp->rect.size.h);
 #if 0
     fprintf(stderr, "... display_init  rect.pos(%d,%d) rect.size(%d,%d) datasize(%d,%d)\n",
                     disp->rect.pos.x, disp->rect.pos.y,
@@ -172,7 +208,10 @@ static int adisplay_init(ADisplay* disp,
                                         disp->rect.size.h,
                                         disp->rect.size.w,
                                         disp->rect.size.h);
-    disp->sub_display = NULL;
+
+// to support multi display rotation & skins
+//    disp->sub_display = NULL;
+    disp->sub_display = Save_sub_display;
 
     return (disp->data == NULL) ? -1 : 0;
 }
@@ -1080,6 +1119,17 @@ add_finger_event(SkinWindow* window,
 {
     unsigned posX = x;
     unsigned posY = y;
+    static bool get_skin_size = false;
+    static int save_lcd_width = 0, save_lcd_height = 0, save_lcd_gap = 0;
+
+    if ( get_skin_size == false ) {
+        int main_w,main_h,sub_w,sub_h,gap,rot;
+	skin_winsys_getDualSize(&main_w,&main_h,&sub_w,&sub_h,&gap,&rot);
+	save_lcd_width = main_w;
+	save_lcd_height = main_h;
+	save_lcd_gap = gap;
+        get_skin_size = true;
+    }
 
     if (skin_winsys_is_folded() && finger->display) {
         switch (finger->display->rotation) {
@@ -1095,20 +1145,51 @@ add_finger_event(SkinWindow* window,
            break;
         }
     }
-    else if (finger->display && finger->display->sub_display) {
+    else if ( finger->display && finger->display->sub_display)  {
         SubDisplay* t = finger->display->sub_display;
         while(t) {
-            if (skin_rect_contains(&t->rect, posX, posY)) {
-                unsigned newX = posX - t->rect.pos.x;
-                unsigned newY = posY - t->rect.pos.y;
-                window->win_funcs->mouse_event(newX, newY, state, t->id);
-                break;
+            unsigned newX,newY;
+            // to support multi display rotation & skins
+            // Wing 270 rotated
+            if ( t->id == 0 ) {
+                   if (t->rect.pos.y<0)
+                       posY +=t->rect.pos.y;
+                   else if(t->rect.pos.y>0)
+                       posY -=t->rect.pos.y;
+                if (skin_rect_contains(&t->rect, posX, posY)) {
+                   //PDE("POSITION >> id0 [%d] x,y[%d %d] rec pos(%d,%d) state[%d]",t->id,posX,posY,t->rect.pos.x,t->rect.pos.y, state);
+                    newX = posX - t->rect.pos.x;
+                    newY = posY - t->rect.pos.y;
+                    window->win_funcs->mouse_event(newX, newY, state, t->id);
+                    //PDE("Multi >> [%d] x,y[%d %d] state[%d]",t->id,newX,newY, state);
+                    break;
+                }
+            }
+            else {
+                SkinRect  r;
+                r.size.h = t->rect.size.w;
+                r.size.w = t->rect.size.h;
+                // to support multi display rotation & skins 
+		// TODO pos..x pos.y should be changed
+                r.pos.x = save_lcd_width + save_lcd_gap;
+                r.pos.y = (save_lcd_height - r.size.h) /2;
+                //PDE("Pos X,Y[%d,%d]",posX,posY);
+                if (skin_rect_contains(&r, posX, posY)) {
+                    D("r x,y[%d %d] w,h[%d %d]",r.pos.x,r.pos.y,r.size.w,r.size.h);
+                    //PDE("t x,y[%d %d] w,h[%d %d]",t->rect.pos.x,t->rect.pos.y,t->rect.size.w,t->rect.size.h);
+                    newY = posX - r.pos.x;
+                    newX = r.size.h - (posY - r.pos.y);
+                    window->win_funcs->mouse_event(newX, newY, state, t->id);
+                    //PDE("Multi [%d] x,y[%d %d] state[%d]",t->id,newX,newY, state);
+                    break;
+                }
             }
             t = t->next;
         }
         return;
     }
 
+    //PDE("Single [%d] x,y[%d %d] state[%d]",0,posX,posY, state);
     window->win_funcs->mouse_event(posX, posY, state, 0);
 }
 
@@ -1126,7 +1207,9 @@ skin_window_find_finger( SkinWindow*  window,
     if (!window->enable_touch)
         return;
 
-    bool roundDevice = skin_surface_is_round(window->surface);
+    // to support multi display rotation & skins 
+    //bool roundDevice = skin_surface_is_round(window->surface);
+    bool roundDevice = false;
 
     LAYOUT_LOOP_DISPLAYS(&window->layout,disp)
         if (roundDevice) {
@@ -1366,6 +1449,8 @@ static void skin_window_run_opengles_show(void* p) {
     skin_winsys_get_device_pixel_ratio(&dpr);
 #endif
 
+D("rot %d x,y[%d %d] w,h[%d %d] fw hw[%d %d]",
+	(int)data->rot,data->wx,data->wy,data->ww,data->wh,data->fbw,data->fbh);
     data->window->win_funcs->opengles_show(skin_winsys_get_window_handle(),
                                            data->wx,
                                            data->wy,
@@ -1712,11 +1797,30 @@ skin_window_resize( SkinWindow*  window, int resize_container )
     skin_surface_fill(window->surface,
                       &layout->rect,
                       layout->color);
-
+#if 0
     Background*  back = layout->backgrounds;
     Background*  end  = back + layout->num_backgrounds;
     for ( ; back < end; back++ )
         background_redraw( back, &layout->rect, window->surface );
+#else
+    Background*  dualback = layout->backgrounds;
+    Background*  singleback;
+    if ( layout->num_backgrounds ) {
+      if ( layout->num_backgrounds > 1 )
+          singleback  =layout->backgrounds+layout->num_backgrounds-1;
+      else
+          singleback  =layout->backgrounds;
+
+      if (mDualmode==1)
+      {
+          background_redraw( dualback, &layout->rect, window->surface );
+      }
+      else
+      {
+          background_redraw(singleback, &layout->rect, window->surface );
+      }
+    }
+#endif
 
     skin_surface_create_window(window->surface, window_x, window_y,
                                window_w, window_h);
@@ -1932,12 +2036,13 @@ skin_window_set_multi_display(SkinWindow* window,
     }
 
     if (add) {
-       if (sub_display) {
+        if (sub_display) {
             // found, then edit
             sub_display->rect.pos.x = xOffset;
             sub_display->rect.pos.y = yOffset;
             sub_display->rect.size.w = width;
             sub_display->rect.size.h = height;
+            D("MOD sub_display[%d] 0x%x",id,(int)sub_display);
         } else {
             // add
             sub_display = malloc(sizeof(SubDisplay));
@@ -1948,8 +2053,12 @@ skin_window_set_multi_display(SkinWindow* window,
             sub_display->id = id;
             sub_display->next = *head;
             *head = sub_display;
+            // to support multi display rotation & skins
+            D("ADD sub_display[%d] 0x%x",id,(int)sub_display);
+            Save_sub_display = window->layout.displays[0].sub_display;
         }
     } else {
+#if 1
         if (sub_display) {
             // delete
             if (prev) {
@@ -1958,8 +2067,21 @@ skin_window_set_multi_display(SkinWindow* window,
                 *head = sub_display->next;
             }
             free(sub_display);
+            Save_sub_display = window->layout.displays[0].sub_display;
+            D("DEL sub_display[%d] 0x%x",id,(int)sub_display);
         }
+#else
+        if (sub_display) {
+        // delete
+        if (prev) {
+            prev->next = sub_display->next;
+        } else {
+            *head = sub_display->next;
+        }
+        }
+#endif
     }
+
 }
 
 void
@@ -2008,12 +2130,27 @@ skin_window_redraw( SkinWindow*  window, SkinRect*  rect )
             }
         }
 
+#if 0
         {
             Background*  back = layout->backgrounds;
             Background*  end  = back + layout->num_backgrounds;
             for ( ; back < end; back++ )
                 background_redraw( back, rect, window->surface );
         }
+#else
+          Background*  dualback = layout->backgrounds;
+        if ( layout->num_backgrounds ) {
+              Background*  singleback  =layout->backgrounds+layout->num_backgrounds-1;
+              if(mDualmode==1)
+              {
+                   background_redraw( dualback, rect, window->surface );
+              }
+              else
+              {
+                  background_redraw( singleback, rect, window->surface );
+              }
+        }
+#endif
 
         {
             ADisplay*  disp = layout->displays;
@@ -2350,4 +2487,11 @@ void skin_window_update_rotation(SkinWindow* window, SkinRotation rotation) {
         return;
 
     skin_winsys_update_rotation(rotation);
+}
+void skin_window_update_dualskin(int mode) {
+
+   mDualmode=mode;
+}
+void skin_window_update_framemode(int mode) {
+   mFramemode=mode;
 }

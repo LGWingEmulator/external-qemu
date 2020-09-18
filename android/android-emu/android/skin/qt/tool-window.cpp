@@ -105,6 +105,7 @@ class QPaintEvent;
 class QPushButton;
 class QScreen;
 class QWidget;
+int mInitSwiveled = -1;
 template <typename T> class QVector;
 
 
@@ -175,6 +176,20 @@ ToolWindow::ToolWindow(EmulatorQtWindow* window,
         mToolsUi->fold_switch->hide();
         mToolsUi->fold_switch->setEnabled(false);
     }
+    if (!isSwivelableConfigured()) {
+        mToolsUi->swivel_switch->hide();
+        mToolsUi->swivel_switch->setEnabled(false);
+    }
+    if (!isDualableConfigured()) {
+        mToolsUi->dual_switch->hide();
+        mToolsUi->dual_switch->setEnabled(false);
+    }
+    
+    // disable Zoom
+    if (isSwivelableConfigured()) {
+        mToolsUi->zoom_button->hide();
+        mToolsUi->zoom_button->setEnabled(false);
+    }
 
     // Get the latest user selections from the user-config code.
     SettingsTheme theme = getSelectedTheme();
@@ -201,7 +216,7 @@ ToolWindow::ToolWindow(EmulatorQtWindow* window,
             "F1         SHOW_PANE_HELP\n"
 #endif
             "Ctrl+S     TAKE_SCREENSHOT\n"
-            "Ctrl+Z     ENTER_ZOOM\n"
+//            "Ctrl+Z     ENTER_ZOOM\n"
             "Ctrl+Up    ZOOM_IN\n"
             "Ctrl+Down  ZOOM_OUT\n"
             "Ctrl+Shift+Up    PAN_UP\n"
@@ -224,7 +239,14 @@ ToolWindow::ToolWindow(EmulatorQtWindow* window,
             "Ctrl+Right ROTATE_RIGHT\n"
             "Ctrl+F     FOLD\n"
             "Ctrl+U     UNFOLD\n";
-
+    if (isSwivelableConfigured()) {
+        default_shortcuts += "Ctrl+2 SWIVEL\n";
+        default_shortcuts += "Ctrl+1 UNSWIVEL\n";
+    }
+    else if(isDualableConfigured()){
+        default_shortcuts += "Ctrl+Shift+2 DUAL\n";
+        default_shortcuts += "Ctrl+Shift+1 UNDUAL\n";
+    }
     if (fc::isEnabled(fc::PlayStoreImage)) {
         default_shortcuts += "Ctrl+Shift+G SHOW_PANE_GPLAY\n";
     }
@@ -525,7 +547,9 @@ void ToolWindow::handleUICommand(QtUICommand cmd, bool down) {
         case QtUICommand::SHOW_PANE_MULTIDISPLAY:
             if (down) {
                 if (android::featurecontrol::isEnabled(android::featurecontrol::MultiDisplay)
-                    && !isFoldableConfigured()) {
+                    && !isFoldableConfigured()
+                    && !isDualableConfigured()
+                    && !isSwivelableConfigured()) {
                     showOrRaiseExtendedWindow(PANE_IDX_MULTIDISPLAY);
                 }
             }
@@ -650,6 +674,51 @@ void ToolWindow::handleUICommand(QtUICommand cmd, bool down) {
                 forwardGenericEventToEmulator(EV_SYN, 0, 0);
             }
             break;
+        case QtUICommand::SWIVEL:
+            if (down && isSwivelableConfigured() && mSwiveled==false) {
+                mSwiveled = true;
+                ChangeIcon(mToolsUi->swivel_switch, "swivel_on", "Unswivel");
+                updateButtonUiCommand(mToolsUi->swivel_switch, "UNSWIVEL");
+                mEmulatorWindow->updateDualSkin(0);
+                sendSwiveledArea(1);
+                mEmulatorWindow->switchDual(1);
+                forwardGenericEventToEmulator(EV_SW, SW_LID, 1); forwardGenericEventToEmulator(EV_SYN, 0, 0);
+                forwardGenericEventToEmulator(EV_SW, SW_LID, 2); forwardGenericEventToEmulator(EV_SYN, 0, 0);
+                mInitSwiveled=1;
+            }
+            break;
+        case QtUICommand::UNSWIVEL:
+            if (down && isSwivelableConfigured() && mSwiveled==true) {
+                mSwiveled = false;
+                ChangeIcon(mToolsUi->swivel_switch, "swivel_off", "Swivel");
+                updateButtonUiCommand(mToolsUi->swivel_switch, "SWIVEL");
+                mEmulatorWindow->updateDualSkin(0);
+                sendSwiveledArea(0);
+                mEmulatorWindow->switchDual(0);
+                forwardGenericEventToEmulator(EV_SW, SW_LID, 1); forwardGenericEventToEmulator(EV_SYN, 0, 0);
+                forwardGenericEventToEmulator(EV_SW, SW_LID, 0); forwardGenericEventToEmulator(EV_SYN, 0, 0);
+            }
+            break;
+        case QtUICommand::DUAL:
+            if (down && isDualableConfigured()) {
+                mDualed = true;
+                ChangeIcon(mToolsUi->dual_switch, "dual_on", "Undual");
+                updateButtonUiCommand(mToolsUi->dual_switch, "UNDUAL");
+                /* multi windows test funntion */
+                forwardGenericEventToEmulator(EV_SW, SW_LID, true);
+                forwardGenericEventToEmulator(EV_SYN, 0, 0);
+            }
+            break;
+        case QtUICommand::UNDUAL:
+            if (down && isDualableConfigured()) {
+                mDualed = false;
+                ChangeIcon(mToolsUi->dual_switch, "dual_off", "Dual");
+                updateButtonUiCommand(mToolsUi->dual_switch, "DUAL");
+                forwardGenericEventToEmulator(EV_SW, SW_LID, false);
+                forwardGenericEventToEmulator(EV_SYN, 0, 0);
+            }
+            break;
+        /***************/
         case QtUICommand::SHOW_MULTITOUCH:
         // Multitouch is handled in EmulatorQtWindow, and doesn't
         // really need an element in the QtUICommand enum. This
@@ -658,7 +727,6 @@ void ToolWindow::handleUICommand(QtUICommand cmd, bool down) {
         default:;
     }
 }
-
 //static
 void ToolWindow::forwardGenericEventToEmulator(int type,
                                                int code,
@@ -739,11 +807,18 @@ void ToolWindow::dockMainWindow() {
     bool hasFrame;
     mEmulatorWindow->windowHasFrame(&hasFrame);
     int toolGap = hasFrame ? TOOL_GAP_FRAMED : TOOL_GAP_FRAMELESS;
-
-    move(parentWidget()->frameGeometry().right()
-             + toolGap - mEmulatorWindow->getRightTransparency() + 1,
-         parentWidget()->geometry().top()
-             + mEmulatorWindow->getTopTransparency());
+    if(isDualableConfigured() || isSwivelableConfigured()) {
+        move(parentWidget()->frameGeometry().right()
+                + toolGap - mEmulatorWindow->getRightTransparency() + 1,
+                parentWidget()->geometry().top());
+    }
+    else
+    {
+        move(parentWidget()->frameGeometry().right()
+                + toolGap - mEmulatorWindow->getRightTransparency() + 1,
+                parentWidget()->geometry().top()
+                + mEmulatorWindow->getTopTransparency());
+    }
 
     mVirtualSceneControlWindow.ifExists(
             [&] { mVirtualSceneControlWindow.get()->dockMainWindow(); });
@@ -776,6 +851,17 @@ bool ToolWindow::isFoldableConfigured() {
           avdInfo_getApiLevel(android_avdInfo) < 28);
 
     return enableFoldableByDefault;
+}
+bool ToolWindow::isSwivelableConfigured() {
+    if (!strcmp(android_hw->hw_option_lgedevice,"lge_wing"))
+        return true;
+    return false;
+}
+bool ToolWindow::isDualableConfigured() {
+    if (!strcmp(android_hw->hw_option_lgedevice,"lge_v50"))
+        return true;
+
+    return false;
 }
 
 // static
@@ -1042,6 +1128,14 @@ void ToolWindow::on_fold_switch_clicked() {
     mEmulatorWindow->activateWindow();
     handleUICommand(mFolded ? QtUICommand::UNFOLD : QtUICommand::FOLD, true);
 }
+void ToolWindow::on_swivel_switch_clicked() {
+    mEmulatorWindow->activateWindow();
+    handleUICommand(mSwiveled ? QtUICommand::UNSWIVEL : QtUICommand::SWIVEL, true);
+}
+void ToolWindow::on_dual_switch_clicked() {
+    mEmulatorWindow->activateWindow();
+    handleUICommand(mDualed ? QtUICommand::UNDUAL : QtUICommand::DUAL, true);
+}
 
 void ToolWindow::on_volume_up_button_pressed() {
     mEmulatorWindow->raise();
@@ -1204,3 +1298,43 @@ void ToolWindow::sendFoldedArea() {
 bool ToolWindow::isFolded() {
     return sToolWindow->mFolded;
 }
+void ToolWindow::setInitSkin(bool bInit) {
+    if (bInit)
+        mInitSwiveled=-2;
+}
+
+//static
+void ToolWindow::sendSwiveledArea(int mode) {
+    EmulatorQtWindow* emuQtWindow = EmulatorQtWindow::getInstance();
+    if (emuQtWindow == nullptr) {
+        VLOG(foldable) << "Error send Event, null emulator qt window";
+        return;
+    }
+    SkinEvent* skin_event = new SkinEvent();
+    skin_event->type = kEventSetDualSkin;
+    skin_event->u.dual_skin.mode=mode;
+    emuQtWindow->queueSkinEvent(skin_event);
+}
+
+//static
+bool ToolWindow::isSwiveled() {
+    return sToolWindow->mSwiveled;
+}
+//static
+void ToolWindow::sendDualedArea(int mode) {
+    EmulatorQtWindow* emuQtWindow = EmulatorQtWindow::getInstance();
+    if (emuQtWindow == nullptr) {
+        VLOG(foldable) << "Error send Event, null emulator qt window";
+        return;
+    }
+    SkinEvent* skin_event = new SkinEvent();
+    skin_event->type = kEventSetDualSkin;
+    skin_event->u.dual_skin.mode=mode;
+    emuQtWindow->queueSkinEvent(skin_event);
+}
+
+//static
+bool ToolWindow::isDualed() {
+    return sToolWindow->mDualed;
+}
+/*************************/

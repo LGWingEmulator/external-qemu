@@ -67,6 +67,13 @@ HelpPage::HelpPage(QWidget* parent) : QWidget(parent), mUi(new Ui::HelpPage) {
     auto verStr = curVersion.isValid()
             ? QString(curVersion.toString().c_str()) : "Unknown";
 
+    // to support multi display rotation & skins
+    char LGE_version[100] ;
+    if ( curVersion.isValid() ) {
+	    sprintf(LGE_version,"LGE %s",curVersion.toString().c_str());
+	    verStr = QString(LGE_version);
+    }
+
     mUi->help_versionBox->setPlainText(verStr);
 
     int apiLevel = avdInfo_getApiLevel(android_avdInfo);

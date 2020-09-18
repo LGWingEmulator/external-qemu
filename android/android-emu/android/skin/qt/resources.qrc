@@ -55,6 +55,10 @@
         <file alias="compress_vert">images/light/ic_compress_678_48dp.svg</file>
         <file alias="expand_horiz">images/light/ic_swap_horiz_678_48dp.svg</file>
         <file alias="expand_vert">images/light/ic_height_678_48dp.svg</file>
+		<file alias="swivel_on">images/light/swivel_off.svg</file>
+		<file alias="swivel_off">images/light/swivel_on.svg</file>
+		<file alias="dual_on">images/light/dual_off.svg</file>
+		<file alias="dual_off">images/light/dual_on.svg</file>
         <file alias="help">images/light/ic_help_678_48dp.svg</file>
         <file alias="home">images/light/System_Home_678.svg</file>
         <file alias="laptop_mode">images/light/laptop_mode.svg</file>
@@ -91,6 +95,12 @@
         <file alias="check_yes_disabled">images/light/ic_check_box_BEE_24dp.svg</file>
         <file alias="check_no">images/light/ic_check_box_outline_blank_777_24dp.svg</file>
         <file alias="check_no_disabled">images/light/ic_check_box_outline_blank_BBB_24dp.svg</file>
+        <file alias="circular_spinner">images/light/spinner.gif</file>
+        <file alias="circular_spinner">images/light/spinner.gif</file>
+        <file alias="circular_spinner">images/light/spinner.gif</file>
+        <file alias="circular_spinner">images/light/spinner.gif</file>
+        <file alias="circular_spinner">images/light/spinner.gif</file>
+        <file alias="circular_spinner">images/light/spinner.gif</file>
         <file alias="circular_spinner">images/light/spinner.gif</file>
         <file alias="circular_spinner_transparent">images/light/spinner_transparent.gif</file>
         <file alias="current_snapshot">images/light/circle_0EC_48dp.svg</file>
@@ -311,6 +321,10 @@
         <file alias="trip_destination">images/dark/ic_directions_destination_white_24dp.svg</file>
         <file alias="virtSensors">images/dark/Virtual_Sensors_677.svg</file>
         <file alias="walk">images/dark/ic_directions_walk_EEE_48dp.svg</file>
+		<file alias="swivel_on">images/dark/swivel_off.svg</file>
+		<file alias="swivel_off">images/dark/swivel_on.svg</file>
+		<file alias="dual_on">images/dark/dual_off.svg</file>
+		<file alias="dual_off">images/dark/dual_on.svg</file>
     </qresource>
     <qresource prefix="/cursor">
         <file alias="zoom_cursor">images/cursor/zoom_cursor.svg</file>

@@ -6,6 +6,7 @@
 #include "RenderThreadInfo.h"
 #include "OpenGLESDispatch/EGLDispatch.h"
 #include "OpenGLESDispatch/GLESv2Dispatch.h"
+#include "emugl/common/misc.h"
 
 #define POST_DEBUG 0
 #if POST_DEBUG >= 1
@@ -25,20 +26,112 @@ void PostWorker::fillMultiDisplayPostStruct(ComposeLayer* l, int idx, ColorBuffe
     l->blendMode = HWC2_BLEND_MODE_NONE;
     l->transform = (hwc_transform_t)0;
     l->alpha = 1.0;
+    /*
+     * to support multi display rotation & skins 
     l->displayFrame.left = mFb->m_displays[idx].pos_x;
     l->displayFrame.top = mFb->m_displays[idx].pos_y;
     l->displayFrame.right = mFb->m_displays[idx].pos_x + mFb->m_displays[idx].width;
     l->displayFrame.bottom =  mFb->m_displays[idx].pos_y + mFb->m_displays[idx].height;
+    *
+    */
+    l->displayFrame.left = w_displays[idx].pos_x;
+    l->displayFrame.top = w_displays[idx].pos_y;
+    l->displayFrame.right = w_displays[idx].pos_x + w_displays[idx].width;
+    l->displayFrame.bottom =  w_displays[idx].pos_y + w_displays[idx].height;
     l->crop.left = 0.0;
     l->crop.top = (float)cb->getHeight();
     l->crop.right = (float)cb->getWidth();
     l->crop.bottom = 0.0;
 }
 
+void PostWorker::recomputeFrameLayout(int rot) {
+	/*
+    for (const auto& iter : w_displays) {
+	printf("w_disp[%d] w,h[%d %d]\n",iter.first,iter.second.width,iter.second.height);
+    }
+    int i;
+    for(i=0;i<4;i++)
+        printf("w_displays[%d] x,y[%d %d] w,y[%d %d] %d\n",i,
+			w_displays[i].pos_x,w_displays[i].pos_y,
+			w_displays[i].width,w_displays[i].height,
+			w_displays[i].rotation);
+			*/
+    int loc;
+
+    if ( rot == 270 ) {
+        w_displays[0].pos_x = 0;
+        w_displays[0].pos_y = 0;
+        loc = w_main_h-w_sub_w;
+        if ( loc > 0 ) w_displays[1].pos_x = (loc)/2;
+        else w_displays[1].pos_x = 0;
+        w_displays[1].pos_y = w_main_w + w_gap;
+
+        w_displays[0].width = w_main_h;
+        w_displays[0].height = w_main_w;
+        w_displays[1].width = w_sub_w;
+        w_displays[1].height = w_sub_h;
+        w_displays[1].rotation = w_rot;
+    }
+    else if ( rot == 180 ) {
+        w_displays[0].pos_x = w_sub_h + w_gap ;
+        w_displays[0].pos_y = 0;
+
+        w_displays[1].pos_x = 0;
+        loc = w_main_h-w_sub_w;
+        if ( loc > 0 ) w_displays[1].pos_y = (loc)/2;
+        else w_displays[1].pos_y = 0;
+
+        w_displays[0].width = w_main_w;
+        w_displays[0].height = w_main_h;
+        w_displays[1].width = w_sub_h;
+        w_displays[1].height = w_sub_w;
+        w_displays[1].rotation = w_rot;
+    }
+    else if ( rot == 90 ) {
+        w_displays[0].pos_x = 0;
+        w_displays[0].pos_y = w_sub_h + w_gap;
+        loc = w_main_h-w_sub_w;
+        if ( loc > 0 ) w_displays[1].pos_x = (loc)/2;
+        else w_displays[1].pos_x = 0;
+        w_displays[1].pos_y = 0 ;
+
+        w_displays[0].width = w_main_h;
+        w_displays[0].height = w_main_w;
+        w_displays[1].width = w_sub_w;
+        w_displays[1].height = w_sub_h;
+        w_displays[1].rotation = w_rot;
+    }
+    else {
+        w_displays[0].pos_x = 0;
+        w_displays[0].pos_y = 0;
+        w_displays[1].pos_x = w_main_w + w_gap ;
+        loc = w_main_h-w_sub_w;
+        if ( loc > 0 ) w_displays[1].pos_y = (loc)/2;
+        else w_displays[1].pos_y = 0;
+
+        w_displays[0].width = w_main_w;
+        w_displays[0].height = w_main_h;
+        w_displays[1].width = w_sub_h;
+        w_displays[1].height = w_sub_w;
+        w_displays[1].rotation = w_rot;
+    }
+//    printf("main w,h[%d %d] sub w,h[%d %d]\n",main_w,main_h,sub_w,sub_h);
+//    printf("[0] x,y[%d %d] w,h[%d %d]\n",w_displays[0].pos_x,w_displays[0].pos_y,w_displays[0].width,w_displays[0].height);
+//    printf("[1] x,y[%d %d] w,h[%d %d]\n",w_displays[1].pos_x,w_displays[1].pos_y,w_displays[1].width,w_displays[1].height);
+}
+
 void PostWorker::post(ColorBuffer* cb) {
     // bind the subwindow eglSurface
     if (!m_initialized) {
         m_initialized = mBindSubwin();
+    }
+    if ( ! w_displays_init ) {
+	w_displays.emplace(0, DualInfo( 0,0,0,0,0));
+	w_displays.emplace(1, DualInfo( 0,0,0,0,0));
+	w_displays.emplace(2, DualInfo( 0,0,0,0,0));
+	w_displays.emplace(3, DualInfo( 0,0,0,0,0));
+	w_displays_init = true;
+        mFb->getDualSize(&w_main_w, &w_main_h, &w_sub_w, &w_sub_h, &w_gap, &w_rot);
     }
 
     float dpr = mFb->getDpr();
@@ -63,14 +156,29 @@ void PostWorker::post(ColorBuffer* cb) {
 
     if (mFb->m_displays.size() > 1 ) {
         int combinedW, combinedH;
-        mFb->getCombinedDisplaySize(&combinedW, &combinedH);
+	// to support multidisplay rotation & skins
+	if ( zRot == 0 || zRot == 180 )
+            mFb->getCombinedDisplaySize(&combinedW, &combinedH);
+	else
+            mFb->getCombinedDisplaySize(&combinedH, &combinedW);
+//printf("PostWorker w,h[%d %d]\n",combinedW, combinedH);
+
         mFb->getTextureDraw()->prepareForDrawLayer();
+	// to support multi display rotation & skins
+        for (const auto& iter : mFb->m_displays) {
+            if (iter.first != 0) {
+		recomputeFrameLayout(zRot);
+		break;
+	    }
+        }
         for (const auto& iter : mFb->m_displays) {
             if ((iter.first != 0) &&
                 (iter.second.width == 0 || iter.second.height == 0 || iter.second.cb == 0)) {
                 continue;
             }
             // don't render 2nd cb to primary display
+	    if ( cb->getDisplay() != 0 )
+                printf("Second cb[%d]\n",cb->getDisplay());
             if (iter.first == 0 && cb->getDisplay() != 0) {
                 continue;
             }
@@ -80,14 +188,46 @@ void PostWorker::post(ColorBuffer* cb) {
                 ERR("fail to find cb %d\n", iter.second.cb);
                 continue;
             }
+
             ComposeLayer l;
+// Overlay mask
+            if ( iter.first ) {
+                l.displayFrame.left = 0;
+                l.displayFrame.top = 0;
+                l.displayFrame.right = combinedW;
+                l.displayFrame.bottom =  combinedH;
+	        if ( zRot == 90 ) l.transform = (hwc_transform_t)HAL_TRANSFORM_ROT_270;
+                else if ( zRot == 180 ) l.transform = (hwc_transform_t)HAL_TRANSFORM_ROT_180;
+                else if ( zRot == 270 ) l.transform = (hwc_transform_t)HAL_TRANSFORM_ROT_90;
+                else	                l.transform = (hwc_transform_t)0;
+                multiDisplayCb->postLayerMask(&l, combinedW, combinedH);
+	    }
+
             fillMultiDisplayPostStruct(&l, iter.first, multiDisplayCb);
-            multiDisplayCb->postLayer(&l, combinedW, combinedH);
+//second requred rotate 270 more
+//because wing screen default is 270
+            int rotation = zRot;
+            if ( iter.first ) {
+                rotation += w_displays[iter.first].rotation * 90;
+                if ( rotation >= 360 ) rotation -= 360;
+            }
+	    if ( rotation == 90 ) l.transform = (hwc_transform_t)HAL_TRANSFORM_ROT_270;
+	    else if ( rotation == 180 ) l.transform = (hwc_transform_t)HAL_TRANSFORM_ROT_180;
+	    else if ( rotation == 270 ) l.transform = (hwc_transform_t)HAL_TRANSFORM_ROT_90;
+            else	            l.transform = (hwc_transform_t)0;
+
+	    if ( !iter.first ) {
+                multiDisplayCb->postLayer(&l, combinedW, combinedH);
+	    }
+	    else if ( emugl::get_emugl_window_operations().isSwiveled() ) {
+                multiDisplayCb->postLayer(&l, combinedW, combinedH);
+	    }
         }
     } else {
         // render the color buffer to the window and apply the overlay
         GLuint tex = cb->scale();
-        cb->postWithOverlay(tex, zRot, dx, dy);
+//        cb->postWithOverlay(tex, zRot, dx, dy);
+        cb->post(tex, zRot, dx, dy);
     }
 
     s_egl.eglSwapBuffers(mFb->getDisplay(), mFb->getWindowSurface());

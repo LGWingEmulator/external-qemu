@@ -35,6 +35,10 @@
 
 #define  D(...)  do {  if (VERBOSE_CHECK(init)) dprint(__VA_ARGS__); } while (0)
 #define  DE(...) do { if (VERBOSE_CHECK(keys)) dprint(__VA_ARGS__); } while (0)
+#define PD(...) {printf("[%s:%d:%s] ",__FILE__,__LINE__,__FUNCTION__);printf(__VA_ARGS__);printf("\n");}
+#define PDE(...) {printf( __VA_ARGS__);printf("\n");}
+#define DD(...) ((void)0)
+
 
 struct SkinUI {
     SkinUIParams           ui_params;
@@ -77,6 +81,9 @@ SkinUI* skin_ui_create(SkinFile* layout_file,
                        const SkinUIParams* ui_params,
                        bool use_emugl_subwindow) {
 
+	DD("layout_file 0x%x",(int)layout_file);
+	DD("ui_fincs 0x%x",(int)ui_funcs);
+
     SkinUI* ui;
 
     ANEW0(ui);
@@ -87,6 +94,16 @@ SkinUI* skin_ui_create(SkinFile* layout_file,
     ui->ui_funcs = ui_funcs;
     ui->ui_params = ui_params[0];
 
+	DD("ui 0x%x",(int)ui);
+	DD("ui-params name %s",ui->ui_params.window_name);
+	DD("	win x,y[%d %d]",ui->ui_params.window_x,ui->ui_params.window_y);
+	DD("	enable_touch %d",ui->ui_params.enable_touch);
+	DD("	enable_dpad %d",ui->ui_params.enable_dpad);
+	DD("	enable_keyboard %d",ui->ui_params.enable_keyboard);
+	DD("	enable_trackball %d",ui->ui_params.enable_trackball);
+	DD("	enable_scale %d",ui->ui_params.enable_scale);
+	DD("ui-layout dpad_rotatione %d",ui->layout->dpad_rotation);
+
     ui->keyboard = skin_keyboard_create(ui->ui_params.keyboard_charmap,
                                         ui->layout->dpad_rotation,
                                         ui_funcs->keyboard_flush);
@@ -94,10 +111,14 @@ SkinUI* skin_ui_create(SkinFile* layout_file,
             skin_generic_event_create(ui_funcs->generic_event_flush);
     ui->window = NULL;
 
+    DD("skin_window_create");
+    DD("use emugl_subwinow %d",use_emugl_subwindow);
+    DD("ui->ui_funcs->window_funcs 0x%x",(int)ui->ui_funcs->window_funcs);
     ui->window = skin_window_create(
             ui->layout, ui->ui_params.window_x, ui->ui_params.window_y,
             ui->ui_params.enable_scale,
             use_emugl_subwindow, ui->ui_funcs->window_funcs);
+    DD("ui->window 0x%x",(int)ui->window);
     if (!ui->window) {
         skin_ui_free(ui);
         return NULL;
@@ -201,6 +222,23 @@ void skin_ui_set_onion(SkinUI* ui,
     }
 }
 
+static void skin_ui_switch_to_layout4Dual(SkinUI* ui, SkinLayout* layout) {
+    ui->layout = layout;
+    skin_window_reset(ui->window, layout);
+    SkinRotation rotation =layout->orientation;
+
+    if (ui->keyboard) {
+        skin_keyboard_set_rotation(ui->keyboard, rotation);
+    }
+
+    if (ui->trackball) {
+        skin_trackball_set_rotation(ui->trackball, rotation);
+        skin_window_set_trackball(ui->window, ui->trackball);
+        skin_window_show_trackball(ui->window, ui->show_trackball);
+    }
+    skin_window_set_lcd_brightness(ui->window, ui->lcd_brightness);
+    ui->ui_funcs->framebuffer_invalidate();
+}
 static void skin_ui_switch_to_layout(SkinUI* ui, SkinLayout* layout) {
     ui->layout = layout;
     skin_window_reset(ui->window, layout);
@@ -215,7 +253,6 @@ static void skin_ui_switch_to_layout(SkinUI* ui, SkinLayout* layout) {
         skin_window_set_trackball(ui->window, ui->trackball);
         skin_window_show_trackball(ui->window, ui->show_trackball);
     }
-
     skin_window_set_lcd_brightness(ui->window, ui->lcd_brightness);
     ui->ui_funcs->framebuffer_invalidate();
 }
@@ -437,11 +474,236 @@ bool skin_ui_process_events(SkinUI* ui) {
         case kEventRestoreSkin:
             emulator_window_restore_skin();
             break;
+        case kEventSetDualSkin:
+            DE("EVENT: kEventSetDualSkin =%d\n", ev.u.dual_skin.mode);
+            skin_window_update_dualskin(ev.u.dual_skin.mode);
+            break;
+        case kEventSetFrameMode:
+            DE("EVENT: kEventSetFrameMode =%d\n", ev.u.frame_mode.mode);
+            skin_window_update_framemode(ev.u.frame_mode.mode);
+            break;
+        case kEventReconfigureLayout:
+            skin_reconfigure_layout(ev.u.reconfigure.w,ev.u.reconfigure.h,ev.u.reconfigure.dual);
+            break;
+
         }
     }
 
     skin_keyboard_flush(ui->keyboard);
     return false;
+}
+
+// to support multi display rotation & skins
+void skin_reconfigure_layout(uint32_t w,uint32_t h, bool dual){
+static int save_off=0,save_offX = 0,save_offY = 0;
+static int save_off_x = 0,save_off_y = 0;
+    int i,rot;
+    EmulatorWindow* emulator = emulator_window_get();
+    SkinPart* part = emulator->layout_file->parts;
+    SkinDisplay* display;
+
+    DD("Reconfigure Layout w,h[%d %d] dual %d",w,h,dual);
+    // no skin case
+    if ( (! part->name ) || (!strcmp(part->name,"")) ) {
+        DD("No part name " );
+        display = part->display;
+        DD("Set w,h[%d %d]-> [%d %d]",display->rect.size.w,display->rect.size.h,w,h);
+        if ( (display->rect.size.w == w ) && ( display->rect.size.h == h )) {
+                DD("Same no need resize");
+                return;
+        }
+        // display surface resize
+        display->rect.size.w = w;
+        display->rect.size.h = h;
+
+        skin_resizeLayout(w,h,0,0);
+        return;
+    }
+    // skin case
+    for(i=0;i<20;i++) {
+        if ( ! part ) break;
+        display = part->display;
+        DD("part-name %s",part->name);
+        if ( !strcmp(part->name,"device")) {
+                //skin
+                display = part->display;
+                rot = display->rotation;
+                if ( (rot %2 )) {
+                    DD("name %s rot %d rect[%d %d]->[%d %d]",part->name,rot,display->rect.size.w,display->rect.size.h,h,w);
+                    display->rect.size.w = h;
+                    display->rect.size.h = w;
+                    display->rotation = (SkinRotation)rot;
+                }
+                else  {
+                    DD("name %s rot %d rect[%d %d]->[%d %d]",part->name,rot,display->rect.size.w,display->rect.size.h,w,h);
+                    display->rect.size.w = w;
+                    display->rect.size.h = h;
+                    display->rotation = (SkinRotation)rot;
+                }
+        }
+        part = part->next;
+    }
+
+    SkinLayout* eLayouts = emulator->layout_file->layouts;
+    SkinLocation* eSkinLocation = (SkinLocation *)0;
+DD("save_off %d",save_off);
+    if ( ! save_off ) {
+      for(;;) {
+        if ( !eLayouts ) {
+                break;
+        }
+
+        rot = eLayouts->orientation;
+        eSkinLocation = eLayouts->locations;
+        for(;;) {
+                if ( !eSkinLocation ) break;
+                DD("SkinLocation part %s",eSkinLocation->part->name);
+                if ( !strcmp(eSkinLocation->part->name,"device" ) ){
+                        break;
+                }
+                eSkinLocation = eSkinLocation->next;
+        }
+        if ( !eSkinLocation ) break;
+
+        if ( rot == 0 ) {
+                save_offX = eSkinLocation->anchor.x ;
+                save_offY = eSkinLocation->anchor.y ;
+        }
+
+        if ( rot == 2 ) {
+                if ( !save_off_x )
+                save_off_x = eSkinLocation->anchor.x ;
+        }
+        if ( rot == 3 ) {
+                if ( !save_off_y )
+                save_off_y = eSkinLocation->anchor.y ;
+        }
+        eLayouts = eLayouts->next;
+      }
+      save_off = 1;
+    }
+
+    eLayouts = emulator->layout_file->layouts;
+    eSkinLocation = (SkinLocation *)0;
+
+    DD("eLayout w,h[%d %d]",eLayouts->size.w,eLayouts->size.h);
+    int skin_w = eLayouts->size.w;
+    int skin_h = eLayouts->size.h;
+    int offX = skin_w - w - save_offX;
+    int offY = skin_h - h - save_offY;
+
+    for(;;) {
+        if ( !eLayouts ) break;
+
+        rot = eLayouts->orientation;
+        eSkinLocation = eLayouts->locations;
+        for(;;) {
+                if ( !eSkinLocation ) break;
+                DD("SkinLocation name  %s",eSkinLocation->part->name);
+                if ( !strcmp(eSkinLocation->part->name,"device" ) ){
+                        break;
+                }
+                eSkinLocation = eSkinLocation->next;
+        }
+        if ( !eSkinLocation ) break;
+
+        DD("Dual status %d",dual);
+        if ( dual ) {
+            if ( rot == 1 ) {
+                eSkinLocation->anchor.x = offY;
+                eSkinLocation->anchor.y = save_offX;
+            }
+            else if ( rot == 2 ) {
+                eSkinLocation->anchor.x = offX;
+                eSkinLocation->anchor.y = offY;
+            }
+            else if ( rot == 3 ) {
+                eSkinLocation->anchor.x = save_offY;
+                eSkinLocation->anchor.y = offX;
+            }
+            else {
+                eSkinLocation->anchor.x = save_offX;
+                eSkinLocation->anchor.y = save_offY;
+            }
+        }
+        else {
+            if ( rot == 1 ) {
+                eSkinLocation->anchor.x = save_offY;
+                eSkinLocation->anchor.y = save_offX;
+            }
+            else if ( rot == 2 ) {
+                eSkinLocation->anchor.x = save_off_x;
+                eSkinLocation->anchor.y = save_offY;
+            }
+            else if ( rot == 3 ) {
+                eSkinLocation->anchor.x = save_offY ;
+                eSkinLocation->anchor.y = save_off_y;
+            }
+        }
+        eLayouts = eLayouts->next;
+    }
+}
+
+void skin_resizeLayout(uint32_t w, uint32_t h,uint32_t offX, uint32_t offY) {
+        DD("resizeLayout w,h[%d %d],offsetx,y[%d %d]",w,h,offX,offY);
+        int rot;
+        SkinLocation* eSkinLocation ;
+        EmulatorWindow* emulator = emulator_window_get();
+        SkinFile* eLayout_file = emulator->layout_file;
+        SkinLayout* eLayouts = eLayout_file->layouts;
+        for(;;) {
+            if ( !eLayouts ) break;
+            if ( !eLayouts->name ) { // No Skin Case
+                eSkinLocation = eLayouts->locations;
+
+                eLayouts->event_type = 5;
+                eLayouts->event_code = 0;
+                eLayouts->event_value = 1;
+                eLayouts->color = 0xff808080;
+                eLayouts->has_dpad_rotation = (int)0;
+                eLayouts->dpad_rotation = (SkinRotation)0;
+
+                rot = eLayouts->orientation;
+                if ( rot == 0 ) {
+                        eLayouts->size.w = w;
+                        eLayouts->size.h = h;
+                        eSkinLocation->anchor.x = offX;
+                        eSkinLocation->anchor.y = offY;
+                        eSkinLocation->rotation = (SkinRotation)0;
+                }
+                else if ( rot == 1 ) {
+                        eLayouts->size.w = h;
+                        eLayouts->size.h = w;
+                        eSkinLocation->anchor.x = offX + h;
+                        eSkinLocation->anchor.y = offY ;
+                        eSkinLocation->rotation = (SkinRotation)1;
+                }
+                else if ( rot == 2 ) {
+                        eLayouts->size.w = w;
+                        eLayouts->size.h = h;
+                        eSkinLocation->anchor.x = offX + w;
+                        eSkinLocation->anchor.y = offY + h;
+                        eSkinLocation->rotation = (SkinRotation)2;
+                }
+                else  {
+                        eLayouts->size.w = h;
+                        eLayouts->size.h = w;
+                        eSkinLocation->anchor.x = offX ;
+                        eSkinLocation->anchor.y = offY + w;
+                        eSkinLocation->rotation = (SkinRotation)3;
+                }
+                DD("Updated Layout w,h[%d %d], anchor x,y[%d %d] rot %d",
+                        eLayouts->size.w,eLayouts->size.h,
+                        eSkinLocation->anchor.x,eSkinLocation->anchor.y,
+                        eSkinLocation->rotation);
+
+                eSkinLocation = eSkinLocation->next;
+                if ( eSkinLocation ) {
+                        DD("Have next SkinLocation");
+                }
+            }
+            eLayouts = eLayouts->next;
+        }
 }
 
 void skin_ui_update_display(SkinUI* ui, int x, int y, int w, int h) {

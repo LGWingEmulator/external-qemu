@@ -16,6 +16,8 @@
 #include "android/emulation/control/window_agent.h"
 
 static bool sIsFolded = false;
+static bool sIsSwiveled = false;
+static bool sIsDualed = false;
 
 static const QAndroidEmulatorWindowAgent sQAndroidEmulatorWindowAgent = {
         .getEmulatorWindow =
@@ -59,6 +61,29 @@ static const QAndroidEmulatorWindowAgent sQAndroidEmulatorWindowAgent = {
                     printf("window-agent-mock-impl: .isFolded ? %d\n", sIsFolded);
                     return sIsFolded;
                 },
+        .swivel=
+                [](bool is_swivel) {
+                    printf("window-agent-mock-impl: .swivel %d\n", is_swivel);
+                    sIsSwiveled = is_swivel;
+                    return true;
+                },
+        .isSwiveled =
+                [](void) -> bool {
+                    printf("window-agent-mock-impl: .isSwiveled ? %d\n", sIsSwiveled);
+                    return sIsSwiveled;
+                },
+        .dual=
+                [](bool is_dual) {
+                    printf("window-agent-mock-impl: .dual %d\n", is_dual);
+                    sIsDualed = is_dual;
+                    return true;
+                },
+        .isDualed =
+                [](void) -> bool {
+                    printf("window-agent-mock-impl: .isDualed ? %d\n", sIsDualed);
+                    return sIsDualed;
+                },
+        /**********/
         .setUIDisplayRegion =
                 [](int x_offset, int y_offset, int w, int h) {
                     printf("window-agent-mock-impl: .setUIDisplayRegion %d %d %dx%d\n",
@@ -70,6 +95,10 @@ static const QAndroidEmulatorWindowAgent sQAndroidEmulatorWindowAgent = {
                            id, x, y, w, h, add ? "add" : "del");
                 },
         .getMultiDisplay = 0,
+        .getDualSize =
+                [](int* w,int* h,int* s_w,int* s_h,int* gap, int* rot) { return true; },
+	.getOrientation = 
+		[] (void) { return 0; },
         .getMonitorRect =
                 [](uint32_t* w, uint32_t* h) {
                     if (w) *w = 2500;
@@ -78,7 +107,8 @@ static const QAndroidEmulatorWindowAgent sQAndroidEmulatorWindowAgent = {
                 },
         .setNoSkin = [](void){
                 },
-        .restoreSkin = [](void) {},
+        .restoreSkin = [](void){
+                },
         .switchMultiDisplay =
                 [](bool add, uint32_t id, int32_t x, int32_t y, uint32_t w, uint32_t h,
                    uint32_t dpi, uint32_t flag)->bool {

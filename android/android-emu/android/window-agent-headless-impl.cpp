@@ -77,6 +77,43 @@ static const QAndroidEmulatorWindowAgent sQAndroidEmulatorWindowAgent = {
                     }
                     return false;
                 },
+        .swivel =
+                [](bool is_swivel) {
+                    if (const auto win = EmulatorNoQtNoWindow::getInstance()) {
+                        if (is_swivel)
+                            win->swivel();
+                        else
+                            win->unSwivel();
+                        return false;
+                    }
+                    return true;
+                },
+        .isSwiveled =
+                [] {
+                    if (const auto win = EmulatorNoQtNoWindow::getInstance()) {
+                        return win->isSwiveled();
+                    }
+                    return false;
+                },
+        .dual=
+                [](bool is_dual) {
+                    if (const auto win = EmulatorNoQtNoWindow::getInstance()) {
+                        if (is_dual)
+                            win->dual();
+                        else
+                            win->unDual();
+                        return false;
+                    }
+                    return true;
+                },
+        .isDualed=
+                [] {
+                    if (const auto win = EmulatorNoQtNoWindow::getInstance()) {
+                        return win->isDualed();
+                    }
+                    return false;
+                },
+        /***************/
         .setUIDisplayRegion = [](int x, int y, int w, int h) {},
         .setUIMultiDisplay = [](uint32_t id,
                               int32_t x,
@@ -93,9 +130,22 @@ static const QAndroidEmulatorWindowAgent sQAndroidEmulatorWindowAgent = {
                               uint32_t* dpi,
                               uint32_t* flag,
                               bool* enabled) { return false; },
+        .getDualSize = [](int* w, int* h, int* s_w, int* s_h,int* gap, int* rot) {return true; },
+	.getOrientation = []() { return 0;},
         .getMonitorRect = [](uint32_t* w, uint32_t* h) { return false; },
         .setNoSkin = []() {},
         .restoreSkin = []() {},
+        .switchDual = [](int32_t opt0) {return true; },
+        .switchOption = [](int32_t opt0,
+                                 int32_t opt1,
+                                 int32_t opt2,
+                                 int32_t opt3,
+                                 int32_t opt4,
+                                 int32_t opt5,
+                                 int32_t opt6,
+                                 int32_t opt7,
+                                 int32_t opt8,
+                                 int32_t opt9) { return true; },
         .switchMultiDisplay = [](bool add,
                                  uint32_t id,
                                  int32_t x,

@@ -29,6 +29,7 @@ ANDROID_BEGIN_HEADER
  * is in the AVD's directory.
  */
 #define CORE_CONFIG_INI "config.ini"
+#define LGE_CORE_CONFIG_INI "lge-config.ini"
 
 /* The name of the .ini file that contains the complete hardware
  * properties for the AVD. This file is specific to the AVD and

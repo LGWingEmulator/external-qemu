@@ -698,7 +698,10 @@ _avdInfo_getContentFilePath(const AvdInfo*  i, const char* fileName)
 static int
 _avdInfo_getConfigIni(AvdInfo*  i)
 {
-    char*  iniPath = _avdInfo_getContentFilePath(i, CORE_CONFIG_INI);
+    char*  iniPath = _avdInfo_getContentFilePath(i, LGE_CORE_CONFIG_INI);
+    if (iniPath == NULL) {
+        iniPath = _avdInfo_getContentFilePath(i, CORE_CONFIG_INI);
+    }
 
     /* Allow non-existing config.ini */
     if (iniPath == NULL) {
@@ -1967,7 +1970,11 @@ void avdInfo_replaceDataPartitionSizeInConfigIni(AvdInfo* i, int64_t sizeBytes) 
     if (!i || !i->configIni) return;
     iniFile_setInt64(i->configIni, "disk.dataPartition.size", sizeBytes);
 
-    char*  iniPath = _avdInfo_getContentFilePath(i, CORE_CONFIG_INI);
+    // to support wing mode skin
+    char*  iniPath = _avdInfo_getContentFilePath(i, LGE_CORE_CONFIG_INI);
+    if (iniPath == NULL) {
+        iniPath = _avdInfo_getContentFilePath(i, CORE_CONFIG_INI);
+    }
     iniFile_saveToFile(i->configIni, iniPath);
 }
 
@@ -2051,8 +2058,11 @@ void avdInfo_replaceMultiDisplayInConfigIni(AvdInfo* i, int index,
         iniFile_setInteger(i->configIni, f_s, flag);
         write = true;
     }
-
-    char*  iniPath = _avdInfo_getContentFilePath(i, CORE_CONFIG_INI);
+    // to support LG Wing mode
+    char*  iniPath = _avdInfo_getContentFilePath(i, LGE_CORE_CONFIG_INI);
+    if (iniPath == NULL) {
+        iniPath = _avdInfo_getContentFilePath(i, CORE_CONFIG_INI);
+    }
     if (iniPath && write)
         iniFile_saveToFile(i->configIni, iniPath);
 }

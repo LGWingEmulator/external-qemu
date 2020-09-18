@@ -342,7 +342,7 @@ struct {
          avdInfo_getEncryptionKeyImagePath},
 };
 
-static constexpr int kVersion = 51;
+static constexpr int kVersion = 50;
 static constexpr int kMaxSaveStatsHistory = 10;
 
 base::StringView Snapshot::dataDir(const char* name) {
@@ -445,6 +445,8 @@ bool Snapshot::save() {
     mSnapshotPb.set_rotation(
             int(Snapshotter::get().windowAgent().getRotation()));
     mSnapshotPb.set_folded(int(Snapshotter::get().windowAgent().isFolded()));
+    mSnapshotPb.set_swiveled(int(Snapshotter::get().windowAgent().isSwiveled()));
+    mSnapshotPb.set_dualed(int(Snapshotter::get().windowAgent().isDualed()));
 
     mSnapshotPb.set_invalid_loads(mInvalidLoads);
     mSnapshotPb.set_successful_loads(mSuccessfulLoads);
@@ -699,6 +701,14 @@ bool Snapshot::load() {
     if (mSnapshotPb.has_folded() &&
         Snapshotter::get().windowAgent().isFolded() != mSnapshotPb.folded()) {
         Snapshotter::get().windowAgent().fold(mSnapshotPb.folded());
+    }
+    if (mSnapshotPb.has_swiveled() &&
+        Snapshotter::get().windowAgent().isSwiveled() != mSnapshotPb.swiveled()) {
+        Snapshotter::get().windowAgent().swivel(mSnapshotPb.swiveled());
+    }
+    if (mSnapshotPb.has_dualed() &&
+        Snapshotter::get().windowAgent().isDualed() != mSnapshotPb.dualed()) {
+        Snapshotter::get().windowAgent().dual(mSnapshotPb.dualed());
     }
 
     return true;

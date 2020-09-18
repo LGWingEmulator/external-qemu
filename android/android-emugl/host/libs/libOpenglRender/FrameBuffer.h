@@ -551,9 +551,10 @@ public:
         uint32_t width;
         uint32_t height;
         uint32_t dpi;
-        DisplayInfo() : cb(0), pos_x(0), pos_y(0), width(0), height(0), dpi(0) {};
-        DisplayInfo(uint32_t cb, int32_t x, int32_t y, uint32_t w, uint32_t h, uint32_t d)
-            : cb(cb), pos_x(x), pos_y(y), width(w), height(h), dpi(d) {}
+        uint32_t rotation;
+        DisplayInfo() : cb(0), pos_x(0), pos_y(0), width(0), height(0), dpi(0),rotation(0) {};
+        DisplayInfo(uint32_t cb, int32_t x, int32_t y, uint32_t w, uint32_t h, uint32_t d,uint32_t r)
+            : cb(cb), pos_x(x), pos_y(y), width(w), height(h), dpi(d), rotation(r) {}
     };
     std::unordered_map<uint32_t, DisplayInfo> m_displays;
     static uint32_t s_maxNumMultiDisplay;
@@ -564,6 +565,9 @@ public:
 
     EGLContext getGlobalEGLContext() { return m_pbufContext; }
     HandleType getLastPostedColorBuffer() { return m_lastPostedColorBuffer; }
+    // to support multi display rotation & skins
+    void recomputeDualLayout(int rot);
+    void getDualSize(int* main_w,int* main_h,int*sub_w, int* sub_h, int* gap, int*  rot) ;
 
 private:
     FrameBuffer(int p_width, int p_height, bool useSubWindow);
@@ -598,6 +602,7 @@ private:
         FrameworkFormat p_frameworkFormat,
         HandleType handle);
     void recomputeLayout();
+    // to support multi display rotation & skins
     void setDisplayPoseInSkinUI(int totalHeight);
     void sweepColorBuffersLocked();
 

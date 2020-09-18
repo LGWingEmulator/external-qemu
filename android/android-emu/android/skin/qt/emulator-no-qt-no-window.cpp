@@ -146,7 +146,7 @@ bool EmulatorNoQtNoWindow::isFolded() const {
 }
 
 void EmulatorNoQtNoWindow::sendFoldedArea() {
-    if (notSupoortFold()) {
+    if (notSuportFold()) {
         return;
     }
     int xOffset = 0;
@@ -170,7 +170,7 @@ void EmulatorNoQtNoWindow::sendFoldedArea() {
                 }});
 }
 
-bool EmulatorNoQtNoWindow::notSupoortFold() {
+bool EmulatorNoQtNoWindow::notSuportFold() {
     int xOffset = android_hw->hw_displayRegion_0_1_xOffset;
     int yOffset = android_hw->hw_displayRegion_0_1_yOffset;
     int width   = android_hw->hw_displayRegion_0_1_width;
@@ -186,6 +186,64 @@ bool EmulatorNoQtNoWindow::notSupoortFold() {
     }
     return false;
 }
+void EmulatorNoQtNoWindow::swivel() {
+    sendSwiveledArea();
+    forwardGenericEventToEmulator(EV_SW, SW_LID, 1); forwardGenericEventToEmulator(EV_SYN, 0, 0);
+    forwardGenericEventToEmulator(EV_SW, SW_LID, 2); forwardGenericEventToEmulator(EV_SYN, 0, 0);
+    mIsSwiveled = true;
+}
+
+void EmulatorNoQtNoWindow::unSwivel() {
+    forwardGenericEventToEmulator(EV_SW, SW_LID, 1); forwardGenericEventToEmulator(EV_SYN, 0, 0);
+    forwardGenericEventToEmulator(EV_SW, SW_LID, 0); forwardGenericEventToEmulator(EV_SYN, 0, 0);
+    mIsSwiveled = false;
+}
+
+bool EmulatorNoQtNoWindow::isSwiveled() const {
+    return mIsSwiveled;
+}
+
+void EmulatorNoQtNoWindow::sendSwiveledArea() {
+    if (notSuportSwivel()) {
+        return;
+    }
+}
+
+bool EmulatorNoQtNoWindow::notSuportSwivel() {
+    if(!strcmp(android_hw->hw_option_lgedevice, "lge_wing"))
+        return true;
+
+    return false;
+}
+void EmulatorNoQtNoWindow::dual() {
+    sendDualedArea();
+    forwardGenericEventToEmulator(EV_SW, SW_LID, true);
+    forwardGenericEventToEmulator(EV_SYN, 0, 0);
+    mIsDualed = true;
+}
+
+void EmulatorNoQtNoWindow::unDual() {
+    forwardGenericEventToEmulator(EV_SW, SW_LID, false);
+    forwardGenericEventToEmulator(EV_SYN, 0, 0);
+    mIsDualed = false;
+}
+
+bool EmulatorNoQtNoWindow::isDualed() const {
+    return mIsDualed;
+}
+
+void EmulatorNoQtNoWindow::sendDualedArea() {
+    if (notSuportDual()) {
+        return;
+    }
+}
+
+bool EmulatorNoQtNoWindow::notSuportDual() {
+    if(!strcmp(android_hw->hw_option_lgedevice, "lge_v50"))
+        return true;
+    return false;
+}
+/***************/
 
 void EmulatorNoQtNoWindow::forwardGenericEventToEmulator(int type, int code, int value) {
     SkinEvent* skin_event = new SkinEvent();

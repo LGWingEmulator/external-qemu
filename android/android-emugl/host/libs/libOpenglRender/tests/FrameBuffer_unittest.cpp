@@ -51,6 +51,10 @@ static const QAndroidEmulatorWindowAgent sQAndroidEmulatorWindowAgent = {
         .showMessageWithDismissCallback = nullptr,
         .fold = nullptr,
         .isFolded = nullptr,
+        .swivel = nullptr,
+        .isSwiveled = nullptr,
+        .dual = nullptr,
+        .isDualed = nullptr,
         .setUIDisplayRegion = [](int x,
                                  int y,
                                  int width,
@@ -63,6 +67,9 @@ static const QAndroidEmulatorWindowAgent sQAndroidEmulatorWindowAgent = {
                               bool add,
                               uint32_t dpi = 0) {},
         .getMultiDisplay = nullptr,
+        .getDualSize =
+                [](int* w,int* h,int* s_w,int* s_h,int* gap, int* rot) { return true; },
+        .getOrientation = []() { return 0;},
         .getMonitorRect =
                 [](uint32_t* w, uint32_t* h) {
                     if (w)
@@ -73,6 +80,17 @@ static const QAndroidEmulatorWindowAgent sQAndroidEmulatorWindowAgent = {
                 },
         .setNoSkin = []() {},
         .restoreSkin = []() {},
+	.switchDual = [](int32_t opt0) {return true; },
+        .switchOption = [](int32_t opt0,
+                                 int32_t opt1,
+                                 int32_t opt2,
+                                 int32_t opt3,
+                                 int32_t opt4,
+                                 int32_t opt5,
+                                 int32_t opt6,
+                                 int32_t opt7,
+                                 int32_t opt8,
+                                 int32_t opt9) { return true; },
         .switchMultiDisplay = [](bool add,
                                uint32_t id,
                                int32_t x,
@@ -762,9 +780,9 @@ TEST_F(FrameBufferTest, ComposeMultiDisplay) {
     mFb->updateColorBuffer(cb3, 0, 0, mWidth/4, mHeight/4, GL_RGBA, GL_UNSIGNED_BYTE, forUpdate3.data());
 
     FrameBuffer::DisplayInfo info[] =
-    {{cb1, -1, -1, (uint32_t)mWidth/2, (uint32_t)mHeight/2, 240},
-     {cb2, -1, -1, (uint32_t)mWidth/4, (uint32_t)mHeight/2, 240},
-     {cb3, -1, -1, (uint32_t)mWidth/4, (uint32_t)mHeight/4, 240}};
+    {{cb1, -1, -1, (uint32_t)mWidth/2, (uint32_t)mHeight/2, 240,0},
+     {cb2, -1, -1, (uint32_t)mWidth/4, (uint32_t)mHeight/2, 240,0},
+     {cb3, -1, -1, (uint32_t)mWidth/4, (uint32_t)mHeight/4, 240,0}};
 
     uint32_t ids[] = {1, 2, 3};
     for (uint32_t i = 0; i < 3 ; i++) {

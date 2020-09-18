@@ -69,6 +69,8 @@ ANDROID_BEGIN_HEADER
     _VERBOSE_TAG(offworld, "Offworld")                                         \
     _VERBOSE_TAG(videoinjection, "Video injection")                            \
     _VERBOSE_TAG(foldable, "Foldable Device")                                  \
+    _VERBOSE_TAG(swivelable, "Swivelable Device")                              \
+    _VERBOSE_TAG(dualable, "Dualable Device")                                  \
     _VERBOSE_TAG(curl, "Libcurl requests")                                     \
 
 #define  _VERBOSE_TAG(x,y)  VERBOSE_##x,

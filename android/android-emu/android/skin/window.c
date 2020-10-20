@@ -40,7 +40,7 @@
 #define  LCD_BRIGHTNESS_DEFAULT  128
 #define  LCD_BRIGHTNESS_MAX      255
 static int mDualmode=1;
-static int mFramemode=0
+static int mFramemode=0;
 
 typedef struct Background {
     SkinImage*   image;
